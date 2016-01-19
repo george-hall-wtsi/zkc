@@ -3,15 +3,21 @@ CC = cc
 
 SRCS = zkc2.c c_tools.c fastlib.c
 OBJS = $(SRCS:.c=.o)
+	
+zkc2-test: $(OBJS)
+	$(CC) $(CFLAGS) -o zkc2-test $(OBJS)
 
-.PHONY: clean
-
-all: $(OBJS) 
+# Production version
+zkc2: $(OBJS)
 	$(CC) $(CFLAGS) -o zkc2 $(OBJS)
 
-# Options to be used when building with Valgrind
-val : CFLAGS = -O0 -g
-val: all
+# Aliases
+val: CFLAGS = -O0 -g
+val: zkc2-test
+prod: zkc2
 	
 clean:
 	rm -f *.o
+
+%.o : %.c 
+	$(CC) $(CFLAGS) -c $< -o $@
