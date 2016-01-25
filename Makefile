@@ -1,4 +1,4 @@
-CFLAGS = -O3 -ansi -Wall -Wextra -pedantic 
+CFLAGS = -O3 -Wall 
 CC = cc
 
 SRCS = zkc2.c c_tools.c fastlib.c
