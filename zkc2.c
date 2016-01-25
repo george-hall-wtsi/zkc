@@ -81,7 +81,7 @@ int hash_base (char base) {
 }
 
 
-seq_hash_return hash_sequence (char *seq) {
+seq_hash_return hash_sequence(char *seq, int region_size, int interval_size, int window_size) {
 
 	uint32_t seq_hash = 0;
 	int base_hash;
@@ -90,11 +90,11 @@ seq_hash_return hash_sequence (char *seq) {
 
 	to_return.found_n = false;
 
-	for (i = 0; i < 15; i++) {
+	for (i = 0; i < window_size; i++) {
 		base_hash = hash_base(seq[i]);
 		if (base_hash != -1) {
-			seq_hash += base_hash;
-			if (i != 14) {
+			if ((i % (region_size + interval_size)) < region_size) {
+				seq_hash += base_hash;
 				seq_hash <<= 2;
 			}
 		}
@@ -105,6 +105,7 @@ seq_hash_return hash_sequence (char *seq) {
 		}
 	}
 
+	seq_hash >>= 2;
 	to_return.hash = seq_hash;
 
 	return to_return;
@@ -128,29 +129,35 @@ uint32_t hash_rc(uint32_t seq_hash) {
 }
 
 
-void decode_hash(uint32_t hash) {
+void decode_hash(uint32_t hash, unsigned int region_size, unsigned int window_size, unsigned int interval_size) {
 
-	char to_return[16];
-	int i;
-	to_return[15] = '\0';
+	unsigned int j;
 
-	for (i = 14; i >= 0; i--) {
-		if ((hash & 3) == 0) {
-			to_return[i] = 'A';
+	hash <<= 2;
+	 
+	for (j = 0; j < window_size; j++) {
+		if ((j % (region_size + interval_size)) < region_size) {
+			if ((hash & (3 << 30)) == 0) {
+				putchar('A');
+			}
+			else if ((hash & (3 << 30)) == (1UL << 30)) {
+				putchar('C');
+			}
+			else if ((hash & (3 << 30)) == (2UL << 30)) {
+				putchar('G');
+			}
+			else if ((hash & (3 << 30)) == (3UL << 30)) {
+				putchar('T');
+			}
+			else {
+				printf("ERROR\n");
+			}
+			hash <<= 2;
 		}
-		else if ((hash & 3) == 1) {
-			to_return[i] = 'C';
+		else {
+			putchar('-');
 		}
-		else if ((hash & 3) == 2) {
-			to_return[i] = 'G';
-		}
-		else if ((hash & 3) == 3) {
-			to_return[i] = 'T';
-		}
-		hash >>= 2;
 	}
-
-	printf("%s ", to_return); 
 }
 
 
@@ -165,22 +172,54 @@ void print_usage(char *prog_loc) {
 }
 
 
-new_hashes shift_hash(int new_base_hash, uint32_t current_seq_hash, uint32_t current_rc_hash) {
+new_hashes shift_hash(uint32_t current_seq_hash, uint32_t current_rc_hash, int num_regions, int *base_hash_array) {
 
 	new_hashes to_return;
+	int iCount;
+	uint32_t seq_mask; 
+	uint32_t rc_mask;
+	int jump = 30 / num_regions; /* Distance to next region */
+
+	if (num_regions == 1) {
+		seq_mask = 1073741820;	/* = 0011 1111 1111 1111 1111 1111 1111 1100 */
+		rc_mask = 268435455;	/* = 0000 1111 1111 1111 1111 1111 1111 1111 */
+	}
+
+	else if (num_regions == 3) {
+		seq_mask = 1070593020;	/* = 0011 1111 1100 1111 1111 0011 1111 1100 */
+		rc_mask = 267648255;	/* = 0000 1111 1111 0011 1111 1100 1111 1111 */
+	}
+
+	else if (num_regions == 5) {
+		seq_mask = 1022611260;	/* = 0011 1100 1111 0011 1100 1111 0011 1100 */
+		rc_mask = 255652815;	/* = 0000 1111 0011 1100 1111 0011 1100 1111 */
+	}
+
+	else if (num_regions == 15) {
+		seq_mask = 0;			/* = 0000 0000 0000 0000 0000 0000 0000 0000 */
+		rc_mask = 0;			/* = 0000 0000 0000 0000 0000 0000 0000 0000 */
+	}
+
+	else {
+		fprintf(stderr, "INTERNAL ERROR: Invalid number of regions\n");
+		exit(EXIT_FAILURE);
+	}
 
 	current_seq_hash <<= 2;
-	/* Zero two most significant bits */
-	current_seq_hash &= 1073741823;
-
 	current_rc_hash >>= 2;
+
+	/* Zero two least significant bits of each region, and two most significant bits overall, of 32-bit int */
+	current_seq_hash &= seq_mask;
+	/* Zero two most significant bits of each region, and two most significant bits overall, of 32-bit int */
+	current_rc_hash &= rc_mask;
 
 	to_return.new_hash = current_seq_hash;
 	to_return.new_rc_hash = current_rc_hash;
 
-	to_return.new_hash += new_base_hash;
-	to_return.new_rc_hash += (new_base_hash & 3) << 28;
-	to_return.new_rc_hash ^= (3UL << 28);
+	for (iCount = 0; iCount < num_regions; iCount++) {
+		to_return.new_hash += base_hash_array[iCount] << (jump * (num_regions - iCount - 1));
+		to_return.new_rc_hash += ((base_hash_array[iCount] ^ 3) << (28 - (iCount * jump)));
+	}
 
 	to_return.canonical_hash = (to_return.new_hash < to_return.new_rc_hash) ? to_return.new_hash : to_return.new_rc_hash;
 
@@ -212,25 +251,33 @@ int main(int argc, char **argv) {
 	int hash;
 	seq_hash_return hash_seq;
 	new_hashes new_hashes_triple;
-	int kmer_hits;
+	unsigned int kmer_hits;
 	unsigned int min_val = 1;
 	unsigned int max_val = 999;
-	int cutoff = 50;
+	unsigned int cutoff = 50;
+	unsigned int interval_size = 0;		/* Number of bases between regions      |||				|||            |||            |||            |||	*/
+	unsigned int region_size = 15;		/* Number of bases in each region       ----------------------------------------------------------------	*/
+	unsigned int window_size;			/* Number of bases in window             3      10       3       10     3      10      3      10      3		*/
+	unsigned int num_regions;			/*										         ^-- interval           ^-- region							*/
+										/*										<--------------------------- window --------------------------->	*/
 	char *where_to_save_hash_table = "\0";
 	char *stored_hash_table_location = "\0";
 	unsigned long i, j; /* Counter */
+	unsigned long new_base_loc;
 	long hist[HISTOGRAM_SIZE];
 	bool extract_reads = false;
 	bool print_hist = false;
 	bool quiet = false;
 	bool verbose = false;
+	bool use_canonical = false;
 	unsigned long end_newest_kmer = 0; /* Index of the end of the most recently found k-mer word in the desired range. Set to -1 to avoid the first base being unmasked. */
 	int arg_i;
+	int new_base_hash_array[5];
+	unsigned int iCount; 
 
 	if (argc <= 2) {
 		print_usage(argv[0]);
 	}
-
 
 	if (!strcmp(argv[1], "both")) {
 		print_hist = true;
@@ -248,7 +295,6 @@ int main(int argc, char **argv) {
 	else {
 		print_usage(argv[0]);
 	}
-
 
 	for (arg_i = 2; arg_i < argc - 1; arg_i++) {
 		if ((!strcmp(argv[arg_i], "-c")) || (!strcmp(argv[arg_i], "--cutoff"))) {
@@ -281,16 +327,45 @@ int main(int argc, char **argv) {
 		else if (!strcmp(argv[arg_i], "--verbose")) {
 			verbose = true;
 		}
+		else if (!strcmp(argv[arg_i], "--rc")) {
+			use_canonical = true;
+		}
 		else if (!strcmp(argv[arg_i], "--in")) {
 			stored_hash_table_location = argv[++arg_i];
 		}
 		else if (!strcmp(argv[arg_i], "--out")) {
 			where_to_save_hash_table = argv[++arg_i];
 		}
+		else if (!strcmp(argv[arg_i], "--region-size")) {
+			if (is_str_of_digits(argv[++arg_i])) {
+				region_size = atoi(argv[arg_i]);
+			}
+			else {
+				print_usage(argv[0]);
+			}
+		}
+		else if (!strcmp(argv[arg_i], "--interval")) {
+			if (is_str_of_digits(argv[++arg_i])) {
+				interval_size = atoi(argv[arg_i]);
+			}
+			else {
+				print_usage(argv[0]);
+			}
+		}
 		else {
 			print_usage(argv[0]);
 		}
 	}
+
+	if (region_size != 1 && region_size != 3 && region_size != 5 && region_size != 15) {
+		fprintf(stderr, "ERROR: Region size must be either 1, 3, 5, or 15\n");
+		exit(EXIT_FAILURE);
+	}
+	else {
+		num_regions = (15 / region_size);
+	}
+
+	window_size = ((num_regions - 1) * interval_size) + 15;
 
 	if ((strlen(stored_hash_table_location) != 0) && (strlen(where_to_save_hash_table) != 0)) {
 		fprintf(stderr, "ERROR: Cannot specify both --in and --out\n");
@@ -322,7 +397,7 @@ int main(int argc, char **argv) {
 	}
 
 	format = which_format(input_file);
-
+	
 	if (strlen(stored_hash_table_location) == 0) {
 
 		if (!quiet) {
@@ -334,11 +409,21 @@ int main(int argc, char **argv) {
 			i = 0;
 			ret = get_next_seg(input_file, format);
 
-			hash_seq = hash_sequence(ret.segment.seq);
+			if (ret.segment.length < window_size) {
 
-			while (hash_seq.found_n == true && i <= (ret.segment.length - 15)) {
+				free(ret.segment.name);
+				free(ret.segment.seq);
+				if (format == 1) {
+					free(ret.segment.qual);
+				}
+				continue;
+			} 
+
+			hash_seq = hash_sequence(ret.segment.seq, region_size, interval_size, window_size);
+
+			while (hash_seq.found_n == true && i <= (ret.segment.length - window_size)) {
 				i += 1;
-				hash_seq = hash_sequence(ret.segment.seq + i);
+				hash_seq = hash_sequence(ret.segment.seq + i, region_size, interval_size, window_size);
 			}
 
 			if (hash_seq.found_n == false) {
@@ -348,28 +433,60 @@ int main(int argc, char **argv) {
 				rc_hash = new_hashes_triple.new_rc_hash;
 				canonical_hash = new_hashes_triple.canonical_hash;
 
-				hash_table[canonical_hash] += 1;
-				i += 15; 
+				if (verbose) {
+					decode_hash(hash_val, region_size, window_size, interval_size);
+					putchar('\n');
+				}
+
+				if (use_canonical) {
+					hash_table[canonical_hash] += 1;
+				}
+				else {
+					hash_table[hash_val] += 1;
+				}
+
+				i += window_size; 
 
 				for (; i < ret.segment.length; i++) {
 
-					hash = hash_base(ret.segment.seq[i]);
+					for (iCount = 0; iCount < num_regions - 1; iCount++) {
+						/* Can guarantee that only the final new character hashed might be an 'N', as otherwise we would have already found it */
+						new_base_loc = i - window_size + region_size + (iCount * (region_size + interval_size));
+						hash = hash_base(ret.segment.seq[new_base_loc]);
+						new_base_hash_array[iCount] = hash;
+					}
+
+					new_base_loc = i - window_size + region_size + (iCount * (region_size + interval_size));
+					hash = hash_base(ret.segment.seq[new_base_loc]);
 
 					if (hash != -1) {
-						new_hashes_triple = shift_hash(hash, hash_val, rc_hash);
+						new_base_hash_array[iCount] = hash;
+						new_hashes_triple = shift_hash(hash_val, rc_hash, num_regions, new_base_hash_array);
 						hash_val = new_hashes_triple.new_hash;
 						rc_hash = new_hashes_triple.new_rc_hash;
 						canonical_hash = new_hashes_triple.canonical_hash;
 
-						hash_table[canonical_hash] += 1;
+						if (verbose) {
+							decode_hash(hash_val, region_size, window_size, interval_size);
+							putchar('\n');
+						}
+
+						if (use_canonical) {
+							hash_table[canonical_hash] += 1;
+						}
+						else {
+							hash_table[hash_val] += 1;
+						}
 
 					}
+
 					else {
 						i += 1;
-						hash_seq = hash_sequence(ret.segment.seq + i);
-						while (hash_seq.found_n == true && i < (ret.segment.length - 15)) {
+						hash_seq = hash_sequence(ret.segment.seq + i, region_size, interval_size, window_size);
+
+						while (hash_seq.found_n == true && i < (ret.segment.length - window_size)) {
 							i += 1;
-							hash_seq = hash_sequence(ret.segment.seq + i);
+							hash_seq = hash_sequence(ret.segment.seq + i, region_size, interval_size, window_size);
 						}
 
 						if (hash_seq.found_n == true) {
@@ -382,11 +499,21 @@ int main(int argc, char **argv) {
 							rc_hash = new_hashes_triple.new_rc_hash;
 							canonical_hash = new_hashes_triple.canonical_hash;
 
-							hash_table[canonical_hash] += 1;
+							if (verbose) {
+								decode_hash(hash_val, region_size, window_size, interval_size);
+								putchar('\n');
+							}
+
+							if (use_canonical) {
+								hash_table[canonical_hash] += 1;
+							}
+							else {
+								hash_table[hash_val] += 1;
+							}
 						}
 
 						/* Move to start of next 'N' free k-mer word */
-						i += 14;
+						i += window_size;
 					}
 				}
 			}
@@ -455,12 +582,12 @@ int main(int argc, char **argv) {
 			}
 
 
-			hash_seq = hash_sequence(ret.segment.seq);
+			hash_seq = hash_sequence(ret.segment.seq, region_size, interval_size, window_size);
 
 			while (hash_seq.found_n == true && i <= (ret.segment.length - 15)) {
 				ret.segment.seq[i] = 'N';
 				i += 1;
-				hash_seq = hash_sequence(ret.segment.seq + i);
+				hash_seq = hash_sequence(ret.segment.seq + i, region_size, interval_size, window_size);
 			}
 
 			if (hash_seq.found_n == false) {
@@ -478,8 +605,8 @@ int main(int argc, char **argv) {
 				}
 
 				if (verbose) {
-					decode_hash(hash_val);
-					printf(" - %lu\n", hash_table[canonical_hash]);
+					decode_hash(hash_val, region_size, window_size, interval_size);
+					putchar('\n');
 				}
 
 				if ((end_newest_kmer == 0) || ((i - 14) > end_newest_kmer)) {
@@ -492,7 +619,9 @@ int main(int argc, char **argv) {
 
 					if (hash != -1) {
 
-						new_hashes_triple = shift_hash(hash, hash_val, rc_hash);
+						/* NEED TO FIX THESE (LOWER ONE IS NEWER) */
+						/* new_hashes_triple = shift_hash(hash, hash_val, rc_hash); */
+						new_hashes_triple = shift_hash(hash_val, rc_hash, num_regions, new_base_hash_array);
 						hash_val = new_hashes_triple.new_hash;
 						rc_hash = new_hashes_triple.new_rc_hash;
 						canonical_hash = new_hashes_triple.canonical_hash;
@@ -503,8 +632,8 @@ int main(int argc, char **argv) {
 						}
 
 						if (verbose) {
-							decode_hash(hash_val);
-							printf(" - %lu\n", hash_table[canonical_hash]);
+							decode_hash(hash_val, region_size, window_size, interval_size);
+							putchar('\n');
 						}
 
 						if ((end_newest_kmer == 0) || ((i - 14) > end_newest_kmer)) {
@@ -521,7 +650,7 @@ int main(int argc, char **argv) {
 
 						/* Move to i to beginning of sequence after the 'N' we just found, and hash this sequence */
 						i += 1;
-						hash_seq = hash_sequence(ret.segment.seq + i);
+						hash_seq = hash_sequence(ret.segment.seq + i, region_size, interval_size, window_size);
 
 						/* Keep hashing the sequence starting at the next base and moving along the window until we don't find any more 'N's */
 						while (hash_seq.found_n == true && i <= (ret.segment.length - 15)) {
@@ -529,7 +658,7 @@ int main(int argc, char **argv) {
 								ret.segment.seq[i] = 'N';
 							}
 							i += 1;
-							hash_seq = hash_sequence(ret.segment.seq + i);
+							hash_seq = hash_sequence(ret.segment.seq + i, region_size, interval_size, window_size);
 						}
 
 						/* i pointing at beginning of new k-mer */
@@ -553,8 +682,8 @@ int main(int argc, char **argv) {
 							}
 
 							if (verbose) {
-								decode_hash(hash_val);
-								printf(" - %lu\n", hash_table[canonical_hash]);
+								decode_hash(hash_val, region_size, window_size, interval_size);
+								putchar('\n');
 							}
 
 							if ((end_newest_kmer == 0) || ((i - 14) > end_newest_kmer)) {
