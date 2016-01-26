@@ -163,6 +163,8 @@ void decode_hash(uint32_t hash, unsigned int region_size, unsigned int window_si
 
 void print_usage(char *prog_loc) {
 
+	char *diagram;
+
 	fprintf(stderr, "\nusage: %s mode [options] <file>\n\n"
 
 					"modes:\n"
@@ -188,6 +190,17 @@ void print_usage(char *prog_loc) {
 						"\t* --min cannot be greater than --max\n"
 						"\t* --region-size must be 1, 3, 5, or 15\n\n", prog_loc);
 
+	diagram =	"diagram:\n"
+				"\t---------------------------------------------------------------\n"
+				"\t|                                                             |\n"
+				"\t|    3     10     3     10     3     10     3     10     3    |\n"
+				"\t|   |||----------|||----------|||----------|||----------|||   |\n"
+                "\t|           ^-- interval       ^-- region                     |\n"
+				"\t|   <---------------------- window ----------------------->   |\n"
+				"\t|                                                             |\n"
+				"\t---------------------------------------------------------------\n";
+
+	fprintf(stderr, "%s\n", diagram);
 	exit(EXIT_FAILURE);
 }
 
