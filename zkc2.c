@@ -541,8 +541,7 @@ int main(int argc, char **argv) {
 						}
 					}
 
-					i = phase ? i + 1 : i; /* May not be necessary (different initial loop conditions were used previously) */
-					for (; i < ret.segment.length; i++) {
+					for (i += 1; i < ret.segment.length; i++) {
 
 						for (iCount = 0; iCount < num_regions - 1; iCount++) {
 							/* Can guarantee that only the final new character hashed might be an 'N', as otherwise we would have already found it */
