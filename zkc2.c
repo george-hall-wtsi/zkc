@@ -17,7 +17,7 @@ void read_hash_table_from_file(uint32_t *hash_table, char *hash_table_location, 
 	FILE* input_file;
 
 	if (!quiet) {
-		fprintf(stderr, "Reading hash table from memory\n");
+		fprintf(stderr, "Reading hash table from file\n");
 	}
 	input_file = fopen(hash_table_location, "rb");
 
@@ -32,7 +32,7 @@ void read_hash_table_from_file(uint32_t *hash_table, char *hash_table_location, 
 	}
 
 	if (!quiet) {
-		fprintf(stderr, "Successfully read hash table from memory\n");
+		fprintf(stderr, "Successfully read hash table from file\n");
 	}
 
 	return;
