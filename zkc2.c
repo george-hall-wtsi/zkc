@@ -310,6 +310,8 @@ int main(int argc, char **argv) {
 	unsigned int iCount; 
 	int phase; /* 0 => Pass 1; 1 => Pass 2 */
 
+	phase = 999; /* Default phase, meaning that I have forgotten to set it to anything meaningful */
+
 	if (argc <= 2) {
 		print_usage(argv[0]);
 	}
@@ -317,17 +319,14 @@ int main(int argc, char **argv) {
 	if (!strcmp(argv[1], "both")) {
 		print_hist = true;
 		extract_reads = true;
-		phase = 0;
 	}
 
 	else if (!strcmp(argv[1], "hist")) {
 		print_hist = true;
-		phase = 0;
 	}
 
 	else if (!strcmp(argv[1], "extract")) {
 		extract_reads = true;
-		phase = 1;
 	}
 
 	else {
@@ -437,167 +436,128 @@ int main(int argc, char **argv) {
 	format = which_format(input_file);
 
 	if (strlen(stored_hash_table_location) == 0) {
-		/* First pass through file to count k-mers into hash_table */
-
 		if (!quiet) {
 			fprintf(stderr, "Counting k-mers into hash table\n");
 		}
+		phase = 0;
 	}
 	else {
+
 		read_hash_table_from_file(hash_table, stored_hash_table_location, quiet);
-		phase = 1; /* Skip straight to second pass if hash table has already been computed */
+
+		if (print_hist) {
+			phase = 1;
+		}
+		else if (extract_reads && !print_hist) {
+			phase = 2;
+		}
 	}
-	
 
+	if (phase == 999) {
+		fprintf(stderr, "INTERNAL ERROR: Phase has not been set correctly (is still at 999)\n");
+		exit(EXIT_FAILURE);
+	}
 
-	/* ------------ MAIN LOGIC --------- */
+	/* 
+	 * Phase 0 = construct hash table
+	 * Phase 1 = print histogram
+	 * Phase 2 = extract reads 
+	 */
 
 	while (true) {
 
-		do {
-			i = 0;
+		if (phase == 0 || phase == 2) {
 
-			if (phase == 1) {
-				kmer_hits = 0;
-				end_newest_kmer = 0;
+			if (phase == 2) {
+				if (!quiet) {
+					fprintf(stderr, "Extracting reads with desired k-mer coverage\n");
+				}
+
+				rewind(input_file);
 			}
 
-			ret = get_next_seg(input_file, format);
+			do {
+				i = 0;
 
-			if (ret.segment.length < window_size) {
-
-				free(ret.segment.name);
-				free(ret.segment.seq);
-				if (format == 1) {
-					free(ret.segment.qual);
-				}
-				continue;
-			} 
-
-			hash_seq = hash_sequence(ret.segment.seq, region_size, interval_size, window_size);
-
-			while (hash_seq.found_n == true && i <= (ret.segment.length - window_size)) {
-				i += 1;
-				hash_seq = hash_sequence(ret.segment.seq + i, region_size, interval_size, window_size);
-				if (phase == 1) {
-					ret.segment.seq[i] = 'N';
-				}
-			}
-
-			if (hash_seq.found_n == false) {
-
-				new_hashes_triple = hash_new_window(hash_seq.hash);
-				hash_val = new_hashes_triple.new_hash;
-				rc_hash = new_hashes_triple.new_rc_hash;
-				canonical_hash = new_hashes_triple.canonical_hash;
-
-				hash_to_use = use_canonical ? canonical_hash : hash_val;
-
-				i += window_size; 
-
-				if (verbose) {
-					decode_hash(hash_val, region_size, window_size, interval_size);
-					putchar('\n');
+				if (phase == 2) {
+					kmer_hits = 0;
+					end_newest_kmer = 0;
 				}
 
-				if (phase == 0) {
-					hash_table[hash_to_use] += 1;
-				}
+				ret = get_next_seg(input_file, format);
 
-				else if (phase == 1) {
-					if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
-						kmer_hits++;
-						end_newest_kmer = i;
+				if (ret.segment.length < window_size) {
+
+					free(ret.segment.name);
+					free(ret.segment.seq);
+					if (format == 1) {
+						free(ret.segment.qual);
 					}
+					continue;
+				} 
 
-					if ((end_newest_kmer == 0) || ((i - 14) > end_newest_kmer)) {
-						ret.segment.seq[i - 14] = 'N';
+				hash_seq = hash_sequence(ret.segment.seq, region_size, interval_size, window_size);
+
+				while (hash_seq.found_n == true && i <= (ret.segment.length - window_size)) {
+					i += 1;
+					hash_seq = hash_sequence(ret.segment.seq + i, region_size, interval_size, window_size);
+					if (phase == 2) {
+						ret.segment.seq[i] = 'N';
 					}
 				}
 
-				i = phase ? i + 1 : i; /* May not be necessary (different initial loop conditions were used previously) */
-				for (; i < ret.segment.length; i++) {
+				if (hash_seq.found_n == false) {
 
-					for (iCount = 0; iCount < num_regions - 1; iCount++) {
-						/* Can guarantee that only the final new character hashed might be an 'N', as otherwise we would have already found it */
+					new_hashes_triple = hash_new_window(hash_seq.hash);
+					hash_val = new_hashes_triple.new_hash;
+					rc_hash = new_hashes_triple.new_rc_hash;
+					canonical_hash = new_hashes_triple.canonical_hash;
+
+					hash_to_use = use_canonical ? canonical_hash : hash_val;
+
+					i += window_size; 
+
+					if (verbose) {
+						decode_hash(hash_val, region_size, window_size, interval_size);
+						putchar('\n');
+					}
+
+					if (phase == 0) {
+						hash_table[hash_to_use] += 1;
+					}
+
+					else if (phase == 2) {
+						if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
+							kmer_hits++;
+							end_newest_kmer = i;
+						}
+
+						if ((end_newest_kmer == 0) || ((i - 14) > end_newest_kmer)) {
+							ret.segment.seq[i - 14] = 'N';
+						}
+					}
+
+					i = phase ? i + 1 : i; /* May not be necessary (different initial loop conditions were used previously) */
+					for (; i < ret.segment.length; i++) {
+
+						for (iCount = 0; iCount < num_regions - 1; iCount++) {
+							/* Can guarantee that only the final new character hashed might be an 'N', as otherwise we would have already found it */
+							new_base_loc = i - window_size + region_size + (iCount * (region_size + interval_size));
+							hash = hash_base(ret.segment.seq[new_base_loc]);
+							new_base_hash_array[iCount] = hash;
+						}
+
 						new_base_loc = i - window_size + region_size + (iCount * (region_size + interval_size));
 						hash = hash_base(ret.segment.seq[new_base_loc]);
-						new_base_hash_array[iCount] = hash;
-					}
 
-					new_base_loc = i - window_size + region_size + (iCount * (region_size + interval_size));
-					hash = hash_base(ret.segment.seq[new_base_loc]);
-
-					if (hash != -1) {
-						new_base_hash_array[iCount] = hash;
-						new_hashes_triple = shift_hash(hash_val, rc_hash, num_regions, new_base_hash_array);
-						hash_val = new_hashes_triple.new_hash;
-						rc_hash = new_hashes_triple.new_rc_hash;
-						canonical_hash = new_hashes_triple.canonical_hash;
-
-						hash_to_use = use_canonical ? canonical_hash : hash_val;
-
-						if (verbose) {
-							decode_hash(hash_val, region_size, window_size, interval_size);
-							putchar('\n');
-						}
-
-						if (phase == 0) {
-							hash_table[hash_to_use] += 1;
-						}
-
-						else if (phase == 1) {
-							if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
-								kmer_hits++;
-								end_newest_kmer = i;
-							}
-
-							if ((end_newest_kmer == 0) || ((i - 14) > end_newest_kmer)) {
-								ret.segment.seq[i - 14] = 'N';
-							}
-						}
-					}
-
-					else {
-
-						if (phase == 1) {
-							/* Before moving onto the next k-mer word, mask, if necessary, the remainder of the k-mer word which is going to be skipped */
-							for (j = i - 14; j < i; j++) {
-								if ((end_newest_kmer == 0) || (j > end_newest_kmer)) {
-									ret.segment.seq[j] = 'N';
-								}
-							}
-						}
-
-						i += 1;
-						hash_seq = hash_sequence(ret.segment.seq + i, region_size, interval_size, window_size);
-
-						/* Keep hashing the sequence starting at the next base and moving along the window until we don't find any more 'N's */
-						while (hash_seq.found_n == true && i < (ret.segment.length - window_size)) {
-							if (phase == 1) {
-								if ((end_newest_kmer == 0) || (i > end_newest_kmer)) {
-									ret.segment.seq[i] = 'N';
-								}
-							}
-
-							i += 1;
-							hash_seq = hash_sequence(ret.segment.seq + i, region_size, interval_size, window_size);
-						}
-
-						if (hash_seq.found_n == true) {
-							break;
-						}
-
-						else {
-							new_hashes_triple = hash_new_window(hash_seq.hash);
+						if (hash != -1) {
+							new_base_hash_array[iCount] = hash;
+							new_hashes_triple = shift_hash(hash_val, rc_hash, num_regions, new_base_hash_array);
 							hash_val = new_hashes_triple.new_hash;
 							rc_hash = new_hashes_triple.new_rc_hash;
 							canonical_hash = new_hashes_triple.canonical_hash;
 
 							hash_to_use = use_canonical ? canonical_hash : hash_val;
-
-							/* Move to start of next 'N' free k-mer word */
-							i += window_size;
 
 							if (verbose) {
 								decode_hash(hash_val, region_size, window_size, interval_size);
@@ -608,7 +568,7 @@ int main(int argc, char **argv) {
 								hash_table[hash_to_use] += 1;
 							}
 
-							else if (phase == 1) {
+							else if (phase == 2) {
 								if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
 									kmer_hits++;
 									end_newest_kmer = i;
@@ -619,33 +579,96 @@ int main(int argc, char **argv) {
 								}
 							}
 						}
-					}
-				}
 
-				if (phase == 1) {
-					/* If necessary, mask the bases in the final k-mer word */
-					for (j = i - 15; j < i; j++) {
-						if ((end_newest_kmer == 0) || (j > end_newest_kmer)) {
-							ret.segment.seq[j] = 'N';
+						else {
+
+							if (phase == 2) {
+								/* Before moving onto the next k-mer word, mask, if necessary, the remainder of the k-mer word which is going to be skipped */
+								for (j = i - 14; j < i; j++) {
+									if ((end_newest_kmer == 0) || (j > end_newest_kmer)) {
+										ret.segment.seq[j] = 'N';
+									}
+								}
+							}
+
+							i += 1;
+							hash_seq = hash_sequence(ret.segment.seq + i, region_size, interval_size, window_size);
+
+							/* Keep hashing the sequence starting at the next base and moving along the window until we don't find any more 'N's */
+							while (hash_seq.found_n == true && i < (ret.segment.length - window_size)) {
+								if (phase == 2) {
+									if ((end_newest_kmer == 0) || (i > end_newest_kmer)) {
+										ret.segment.seq[i] = 'N';
+									}
+								}
+
+								i += 1;
+								hash_seq = hash_sequence(ret.segment.seq + i, region_size, interval_size, window_size);
+							}
+
+							if (hash_seq.found_n == true) {
+								break;
+							}
+
+							else {
+								new_hashes_triple = hash_new_window(hash_seq.hash);
+								hash_val = new_hashes_triple.new_hash;
+								rc_hash = new_hashes_triple.new_rc_hash;
+								canonical_hash = new_hashes_triple.canonical_hash;
+
+								hash_to_use = use_canonical ? canonical_hash : hash_val;
+
+								/* Move to start of next 'N' free k-mer word */
+								i += window_size;
+
+								if (verbose) {
+									decode_hash(hash_val, region_size, window_size, interval_size);
+									putchar('\n');
+								}
+
+								if (phase == 0) {
+									hash_table[hash_to_use] += 1;
+								}
+
+								else if (phase == 2) {
+									if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
+										kmer_hits++;
+										end_newest_kmer = i;
+									}
+
+									if ((end_newest_kmer == 0) || ((i - 14) > end_newest_kmer)) {
+										ret.segment.seq[i - 14] = 'N';
+									}
+								}
+							}
+						}
+					}
+
+					if (phase == 2) {
+						/* If necessary, mask the bases in the final k-mer word */
+						for (j = i - 15; j < i; j++) {
+							if ((end_newest_kmer == 0) || (j > end_newest_kmer)) {
+								ret.segment.seq[j] = 'N';
+							}
 						}
 					}
 				}
-			}
 
-			if (phase == 1) {
-				if (kmer_hits >= cutoff) {
-					printf(">%s %d\n%s\n", ret.segment.name, kmer_hits, ret.segment.seq);
+				if (phase == 2) {
+					if (kmer_hits >= cutoff) {
+						printf(">%s %d\n%s\n", ret.segment.name, kmer_hits, ret.segment.seq);
+					}
 				}
-			}
 
-			free(ret.segment.name);
-			free(ret.segment.seq);
-			if (format == 1) {
-				free(ret.segment.qual);
-			}
+				free(ret.segment.name);
+				free(ret.segment.seq);
+				if (format == 1) {
+					free(ret.segment.qual);
+				}
 
-		} while (!ret.bEOF);
+			} while (!ret.bEOF);
 
+		}
 
 		if (phase == 0) {
 			if (strlen(where_to_save_hash_table) != 0) {
@@ -653,49 +676,60 @@ int main(int argc, char **argv) {
 			}
 
 			if (print_hist) {
-
-				if (!quiet) {
-					fprintf(stderr, "Computing histogram\n");
-				}
-
-				for (i = 0; i < (HISTOGRAM_SIZE - 1); i++) {
-					hist[i] = 0;
-				}
-
-				for (i = 0; i < NUM_CELLS_HASH_TABLE; i++) {
-					if (hash_table[i] > 0) {
-						if (hash_table[i] < HISTOGRAM_SIZE) {
-							hist[hash_table[i] - 1]++;
-						}
-						else {
-							hist[HISTOGRAM_SIZE - 1]++;
-						}
-					}
-				}
-
-				for (i = 0; i < (HISTOGRAM_SIZE - 1); i++) {
-					if (hist[i] > 0) {
-						printf("%lu %ld\n", i + 1, hist[i]);
-					}
-				}
-			}
-
-			if (extract_reads)	{
-				/* Move on to second pass */
-				if (!quiet) {
-					fprintf(stderr, "Extracting reads with desired k-mer coverage\n");
-				}
-				rewind(input_file);
 				phase = 1;
 			}
-
+			else if (extract_reads && !print_hist) {
+				rewind(input_file);
+				phase = 2;
+			}
 			else {
 				break;
 			}
 		}
 
 		else if (phase == 1) {
+
+			if (!quiet) {
+				fprintf(stderr, "Computing histogram\n");
+			}
+
+			for (i = 0; i < (HISTOGRAM_SIZE - 1); i++) {
+				hist[i] = 0;
+			}
+
+			for (i = 0; i < NUM_CELLS_HASH_TABLE; i++) {
+				if (hash_table[i] > 0) {
+					if (hash_table[i] < HISTOGRAM_SIZE) {
+						hist[hash_table[i] - 1]++;
+					}
+					else {
+						hist[HISTOGRAM_SIZE - 1]++;
+					}
+				}
+			}
+
+			for (i = 0; i < (HISTOGRAM_SIZE - 1); i++) {
+				if (hist[i] > 0) {
+					printf("%lu %ld\n", i + 1, hist[i]);
+				}
+			}
+
+			if (extract_reads) {
+				rewind(input_file);
+				phase = 2;
+			}	
+			else {
+				break;
+			}
+		}
+
+		else if (phase == 2) {
 			break;
+		}
+
+		else {
+			fprintf(stderr, "INTERNAL ERROR: Phase not correctly set\n");
+			exit(EXIT_FAILURE);
 		}
 	}
 
