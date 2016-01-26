@@ -162,12 +162,32 @@ void decode_hash(uint32_t hash, unsigned int region_size, unsigned int window_si
 
 
 void print_usage(char *prog_loc) {
-	fprintf(stderr, "\nusage: %s mode [options] <file>\n\n", prog_loc);
-	fprintf(stderr, "modes:\n\thist : only count k-mers and print histogram\n\textract : extract reads with above 'cutoff' number of k-mers mapping to it\n\tboth : do both hist and extract\n\n");
-	fprintf(stderr, "options - (default):\n\t--cutoff : minimum number of k-mers mapped to read for read to be printed (50)\n\t--min : minimum number of occurrences of k-mer for it to be masked on read (1)\n");
-	fprintf(stderr, "\t--max : maximum number of occurrences of k-mer for it to be masked on read (999)\n");
-	fprintf(stderr, "\t--out : file in which to store hash table  - optional\n\t--in : location of hash table file - optional: hash table will be computed if not provided\n");
-	fprintf(stderr, "\tNote: A maximuim of one of --in and --out may be specified by the user\n\n");
+
+	fprintf(stderr, "\nusage: %s mode [options] <file>\n\n"
+
+					"modes:\n"
+						"\thist : only count k-mers and print histogram\n"
+						"\textract : extract reads with above 'cutoff' number of k-mers mapping to it\n"
+						"\tboth : do both hist and extract\n\n"
+
+					"options (default):\n"
+						"\t--cutoff : minimum number of k-mers mapped to read for read to be printed (50)\n"
+						"\t--min : minimum number of occurrences of k-mer for it to be masked on read (1)\n"
+						"\t--max : maximum number of occurrences of k-mer for it to be masked on read (999)\n"
+						"\t--out : file in which to store hash table - optional\n"
+						"\t--in : location of hash table file - optional: hash table will be computed if not provided\n"
+						"\t--quiet : supress progress messages normally printed to stderr (false)\n"
+						"\t--verbose : print each k-mer as it is hashed (only really useful for debugging) (false)\n"
+						"\t--rc : count canonical version of k-mers (i.e. the lowest scoring hash of the k-mer and its reverse complement) (false)\n"
+						"\t--region-size : number of bases in each region (15)\n"
+						"\t--interval : number of bases in gap between each region (0)\n\n"
+
+					"notes:\n"
+						"\t* A maximuim of one of --in and --out may be specified by the user\n"
+						"\t* --quiet and --verbose are mutually exclusive\n"
+						"\t* --min cannot be greater than --max\n"
+						"\t* --region-size must be 1, 3, 5, or 15\n\n", prog_loc);
+
 	exit(EXIT_FAILURE);
 }
 
