@@ -496,6 +496,10 @@ int main(int argc, char **argv) {
 					continue;
 				} 
 
+				if (verbose) {
+					printf("%s\n", ret.segment.name);
+				}
+
 				hash_seq = hash_sequence(ret.segment.seq, region_size, interval_size, window_size);
 
 				while (hash_seq.found_n == true && i <= (ret.segment.length - window_size)) {
@@ -618,8 +622,8 @@ int main(int argc, char **argv) {
 
 								hash_to_use = use_canonical ? canonical_hash : hash_val;
 
-								/* Move to start of next 'N' free k-mer word */
-								i += window_size;
+								/* Move to end of k-mer word */
+								i += window_size - 1;
 
 								if (verbose) {
 									decode_hash(hash_val, region_size, window_size, interval_size);
@@ -708,7 +712,7 @@ int main(int argc, char **argv) {
 				}
 			}
 
-			for (i = 0; i < (HISTOGRAM_SIZE - 1); i++) {
+			for (i = 0; i < HISTOGRAM_SIZE; i++) {
 				if (hist[i] > 0) {
 					printf("%lu %ld\n", i + 1, hist[i]);
 				}
