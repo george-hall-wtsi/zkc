@@ -196,16 +196,16 @@ void print_usage(char *prog_loc) {
 						"\tboth : do both hist and extract\n\n"
 
 					"options (default):\n"
-						"\t--cutoff : minimum number of k-mers mapped to read for read to be printed (50)\n"
+						"\t-u --cutoff : minimum number of k-mers mapped to read for read to be printed (50)\n"
 						"\t--min : minimum number of occurrences of k-mer for it to be masked on read (1)\n"
 						"\t--max : maximum number of occurrences of k-mer for it to be masked on read (999)\n"
 						"\t--out : file in which to store hash table - optional\n"
 						"\t--in : location of hash table file - optional: hash table will be computed if not provided\n"
-						"\t--quiet : supress progress messages normally printed to stderr (false)\n"
-						"\t--verbose : print each k-mer as it is hashed (only really useful for debugging) (false)\n"
-						"\t--rc : count canonical version of k-mers (i.e. the lowest scoring hash of the k-mer and its reverse complement) (false)\n"
-						"\t--region-size : number of bases in each region (15)\n"
-						"\t--interval : number of bases in gap between each region (0)\n\n"
+						"\t-q --quiet : supress progress messages normally printed to stderr (false)\n"
+						"\t-v --verbose : print each k-mer as it is hashed (only really useful for debugging) (false)\n"
+						"\t-c --canonical : count canonical version of k-mers (i.e. the lowest scoring hash of the k-mer and its reverse complement) (false)\n"
+						"\t-r --region-size : number of bases in each region (15)\n"
+						"\t-i --interval-size : number of bases in gap between each region (0)\n\n"
 
 					"notes:\n"
 						"\t* A maximuim of one of --in and --out may be specified by the user\n"
@@ -357,7 +357,7 @@ int main(int argc, char **argv) {
 	}
 
 	for (arg_i = 2; arg_i < argc - 1; arg_i++) {
-		if ((!strcmp(argv[arg_i], "-c")) || (!strcmp(argv[arg_i], "--cutoff"))) {
+		if (!strcmp(argv[arg_i], "-u") || !strcmp(argv[arg_i], "--cutoff")) {
 			if (is_str_of_digits(argv[++arg_i])) {
 				cutoff = atoi(argv[arg_i]);
 			}
@@ -381,13 +381,13 @@ int main(int argc, char **argv) {
 				print_usage(argv[0]);
 			}
 		}
-		else if (!strcmp(argv[arg_i], "--quiet")) {
+		else if (!strcmp(argv[arg_i], "-q") || !strcmp(argv[arg_i], "--quiet")) {
 			quiet = true;
 		}
-		else if (!strcmp(argv[arg_i], "--verbose")) {
+		else if (!strcmp(argv[arg_i], "-v") || !strcmp(argv[arg_i], "--verbose")) {
 			verbose = true;
 		}
-		else if (!strcmp(argv[arg_i], "--rc")) {
+		else if (!strcmp(argv[arg_i], "-c") || !strcmp(argv[arg_i], "--canonical")) {
 			use_canonical = true;
 		}
 		else if (!strcmp(argv[arg_i], "--in")) {
@@ -396,7 +396,7 @@ int main(int argc, char **argv) {
 		else if (!strcmp(argv[arg_i], "--out")) {
 			where_to_save_hash_table = argv[++arg_i];
 		}
-		else if (!strcmp(argv[arg_i], "--region-size")) {
+		else if (!strcmp(argv[arg_i], "-r") || !strcmp(argv[arg_i], "--region-size")) {
 			if (is_str_of_digits(argv[++arg_i])) {
 				region_size = atoi(argv[arg_i]);
 			}
@@ -404,7 +404,7 @@ int main(int argc, char **argv) {
 				print_usage(argv[0]);
 			}
 		}
-		else if (!strcmp(argv[arg_i], "--interval")) {
+		else if (!strcmp(argv[arg_i], "-i") || !strcmp(argv[arg_i], "--interval-size")) {
 			if (is_str_of_digits(argv[++arg_i])) {
 				interval_size = atoi(argv[arg_i]);
 			}
