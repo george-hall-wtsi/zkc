@@ -161,24 +161,24 @@ void decode_hash(uint32_t hash, unsigned int region_size, unsigned int window_si
 	for (j = 0; j < window_size; j++) {
 		if ((j % (region_size + interval_size)) < region_size) {
 			if ((hash & (3 << 30)) == 0) {
-				putchar('A');
+				putc('A', stderr);
 			}
 			else if ((hash & (3 << 30)) == (1UL << 30)) {
-				putchar('C');
+				putc('C', stderr);
 			}
 			else if ((hash & (3 << 30)) == (2UL << 30)) {
-				putchar('G');
+				putc('G', stderr);
 			}
 			else if ((hash & (3 << 30)) == (3UL << 30)) {
-				putchar('T');
+				putc('T', stderr);
 			}
 			else {
-				printf("ERROR\n");
+				fprintf(stderr, "INTERNAL ERROR: Something went wrong in decode_hash\n");
 			}
 			hash <<= 2;
 		}
 		else {
-			putchar('-');
+			putc('-', stderr);
 		}
 	}
 }
@@ -520,7 +520,7 @@ int main(int argc, char **argv) {
 				} 
 
 				if (verbose) {
-					printf("%s\n", ret.segment.name);
+					fprintf(stderr, "%s\n", ret.segment.name);
 				}
 
 				hash_seq = hash_sequence(ret.segment.seq, region_size, interval_size, window_size);
@@ -549,7 +549,7 @@ int main(int argc, char **argv) {
 
 					if (verbose) {
 						decode_hash(hash_val, region_size, window_size, interval_size);
-						putchar('\n');
+						putc('\n', stderr);
 					}
 
 					if (phase == 0) {
@@ -593,7 +593,7 @@ int main(int argc, char **argv) {
 
 							if (verbose) {
 								decode_hash(hash_val, region_size, window_size, interval_size);
-								putchar('\n');
+								putc('\n', stderr);
 							}
 
 							if (phase == 0) {
@@ -664,7 +664,7 @@ int main(int argc, char **argv) {
 
 								if (verbose) {
 									decode_hash(hash_val, region_size, window_size, interval_size);
-									putchar('\n');
+									putc('\n', stderr);
 								}
 
 								if (phase == 0) {
