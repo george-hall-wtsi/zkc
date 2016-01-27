@@ -304,7 +304,7 @@ int main(int argc, char **argv) {
 	bool quiet = false;
 	bool verbose = false;
 	bool use_canonical = false;
-	unsigned long end_newest_kmer = 0; /* Index of the end of the most recently found k-mer word in the desired range. Set to -1 to avoid the first base being unmasked. */
+	unsigned long end_newest_kmer = 0; /* Index of the end of the most recently found k-mer word in the desired range. Set to 0 to avoid the first base being unmasked. */
 	int arg_i;
 	int new_base_hash_array[5];
 	unsigned int iCount; 
