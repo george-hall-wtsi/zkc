@@ -285,7 +285,7 @@ int main(int argc, char **argv) {
 	int hash;
 	seq_hash_return hash_seq;
 	new_hashes new_hashes_triple;
-	unsigned int kmer_hits;
+	unsigned int kmer_hits = 0;
 	unsigned int min_val = 1;
 	unsigned int max_val = 999;
 	unsigned int cutoff = 50;
