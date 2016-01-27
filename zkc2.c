@@ -506,6 +506,9 @@ int main(int argc, char **argv) {
 					i += 1;
 					hash_seq = hash_sequence(ret.segment.seq + i, region_size, interval_size, window_size);
 					if (phase == 2) {
+						if (verbose) {
+							fprintf(stderr, "(1) Masking at i = %lu\n", i);
+						}
 						ret.segment.seq[i] = 'N';
 					}
 				}
@@ -519,7 +522,7 @@ int main(int argc, char **argv) {
 
 					hash_to_use = use_canonical ? canonical_hash : hash_val;
 
-					i += window_size; 
+					i += window_size - 1; 
 
 					if (verbose) {
 						decode_hash(hash_val, region_size, window_size, interval_size);
@@ -536,8 +539,11 @@ int main(int argc, char **argv) {
 							end_newest_kmer = i;
 						}
 
-						if ((end_newest_kmer == 0) || ((i - 14) > end_newest_kmer)) {
-							ret.segment.seq[i - 14] = 'N';
+						if ((end_newest_kmer == 0) || ((i - window_size + 1) > end_newest_kmer)) {
+							if (verbose) {
+								fprintf(stderr, "(2) - Masking at i = %lu\n", i);
+							}
+							ret.segment.seq[i - window_size + 1] = 'N';
 						}
 					}
 
@@ -577,8 +583,11 @@ int main(int argc, char **argv) {
 									end_newest_kmer = i;
 								}
 
-								if ((end_newest_kmer == 0) || ((i - 14) > end_newest_kmer)) {
-									ret.segment.seq[i - 14] = 'N';
+								if ((end_newest_kmer == 0) || ((i - window_size + 1) > end_newest_kmer)) {
+									if (verbose) {
+										fprintf(stderr, "(3) Masking at i = %lu\n", i);
+									}
+									ret.segment.seq[i - window_size + 1] = 'N';
 								}
 							}
 						}
@@ -587,8 +596,11 @@ int main(int argc, char **argv) {
 
 							if (phase == 2) {
 								/* Before moving onto the next k-mer word, mask, if necessary, the remainder of the k-mer word which is going to be skipped */
-								for (j = i - 14; j < i; j++) {
+								for (j = i - window_size + 1; j < i; j++) {
 									if ((end_newest_kmer == 0) || (j > end_newest_kmer)) {
+										if (verbose) {
+											fprintf(stderr, "(4) Masking at i = %lu\n", i);
+										}
 										ret.segment.seq[j] = 'N';
 									}
 								}
@@ -601,6 +613,9 @@ int main(int argc, char **argv) {
 							while (hash_seq.found_n == true && i < (ret.segment.length - window_size)) {
 								if (phase == 2) {
 									if ((end_newest_kmer == 0) || (i > end_newest_kmer)) {
+										if (verbose) {
+										fprintf(stderr, "(5) Masking at i = %lu\n", i);
+										}
 										ret.segment.seq[i] = 'N';
 									}
 								}
@@ -639,8 +654,11 @@ int main(int argc, char **argv) {
 										end_newest_kmer = i;
 									}
 
-									if ((end_newest_kmer == 0) || ((i - 14) > end_newest_kmer)) {
-										ret.segment.seq[i - 14] = 'N';
+									if ((end_newest_kmer == 0) || ((i - window_size + 1) > end_newest_kmer)) {
+										if (verbose) {
+											fprintf(stderr, "(6) Masking at i = %lu\n", i);
+										}
+										ret.segment.seq[i - window_size + 1] = 'N';
 									}
 								}
 							}
@@ -648,9 +666,12 @@ int main(int argc, char **argv) {
 					}
 
 					if (phase == 2) {
-						/* If necessary, mask the bases in the final k-mer word */
-						for (j = i - 15; j < i; j++) {
+						/* Mask the bases in the final k-mer word */
+						for (j = i - window_size; j < i; j++) {
 							if ((end_newest_kmer == 0) || (j > end_newest_kmer)) {
+								if (verbose) {
+									fprintf(stderr, "(7) Masking at i = %lu\n", i);
+								}
 								ret.segment.seq[j] = 'N';
 							}
 						}
