@@ -104,11 +104,11 @@ int hash_base (char base) {
 }
 
 
-seq_hash_return hash_sequence(char *seq, int region_size, int interval_size, int window_size) {
+seq_hash_return hash_sequence(char *seq, unsigned int region_size, unsigned int interval_size, unsigned int window_size) {
 
 	uint32_t seq_hash = 0;
 	int base_hash;
-	int i;
+	unsigned int i;
 	seq_hash_return to_return;
 
 	to_return.found_n = false;
@@ -232,7 +232,7 @@ void print_usage(char *prog_loc) {
 }
 
 
-new_hashes shift_hash(uint32_t current_seq_hash, uint32_t current_rc_hash, int num_regions, int *base_hash_array) {
+new_hashes shift_hash(uint32_t current_seq_hash, uint32_t current_rc_hash, unsigned int num_regions, int *base_hash_array) {
 
 	new_hashes to_return;
 	int iCount;
@@ -431,9 +431,8 @@ int main(int argc, char **argv) {
 	}
 	else {
 		num_regions = (15 / region_size);
+		window_size = ((num_regions - 1) * interval_size) + 15;
 	}
-
-	window_size = ((num_regions - 1) * interval_size) + 15;
 
 	if ((strlen(stored_hash_table_location) != 0) && (strlen(where_to_save_hash_table) != 0)) {
 		fprintf(stderr, "ERROR: Cannot specify both --in and --out\n");
@@ -444,16 +443,17 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "ERROR: Cannot enable both quiet and verbose modes\n");
 		exit(EXIT_FAILURE);
 	}
+	
+	if (max_val < min_val) {
+		fprintf(stderr, "ERROR: Minimum value must not be greater than maximum value\n");
+		exit(EXIT_FAILURE);
+	}
 
 	if ((input_file = fopen(argv[argc - 1], "r")) == NULL) {
 		fprintf(stderr, "ERROR: Could not open data file\n");
 		exit(EXIT_FAILURE);
 	}
 
-	if (max_val < min_val) {
-		fprintf(stderr, "ERROR: Minimum value must not be greater than maximum value\n");
-		exit(EXIT_FAILURE);
-	}
 
 	/* Hash table is 4^15 cells which are guaranteed to be capable of holding the count of a k-mer 
 	 * providing that the count does not exceed 2^32 - the minimum size of a long). 
@@ -559,7 +559,7 @@ int main(int argc, char **argv) {
 
 					if (verbose) {
 						decode_hash(hash_val, region_size, window_size, interval_size);
-						putc('\n', stderr);
+						fprintf(stderr, " %lu\n", hash_table[hash_val]);
 					}
 
 					if (phase == 0) {
@@ -605,7 +605,7 @@ int main(int argc, char **argv) {
 
 							if (verbose) {
 								decode_hash(hash_val, region_size, window_size, interval_size);
-								putc('\n', stderr);
+								fprintf(stderr, " %lu\n", hash_table[hash_val]);
 							}
 
 							if (phase == 0) {
@@ -682,7 +682,7 @@ int main(int argc, char **argv) {
 
 								if (verbose) {
 									decode_hash(hash_val, region_size, window_size, interval_size);
-									putc('\n', stderr);
+									fprintf(stderr, " %lu\n", hash_table[hash_val]);
 								}
 
 								if (phase == 0) {
