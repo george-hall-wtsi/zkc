@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <stdint.h>
+#include <inttypes.h>
 
 #include "c_tools.h"
 #include "fastlib.h"
@@ -592,7 +592,7 @@ int main(int argc, char **argv) {
 
 					if (verbose) {
 						decode_hash(hash_val, region_size, window_size, interval_size);
-						fprintf(stderr, " %lu\n", hash_table[hash_val]);
+						fprintf(stderr, " %" PRIu32 "\n", hash_table[hash_val]);
 					}
 
 					if (phase == 0) {
@@ -605,7 +605,7 @@ int main(int argc, char **argv) {
 							if (mask == 1) {
 								for (int k = i - region_size + 1, l = 0; l < (region_size); l++) {
 									if (verbose) {
-										fprintf(stderr, "1: (k + l) %% (region_size + interval_size) = %lu k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
+										fprintf(stderr, "1: (k + l) %% (region_size + interval_size) = %" PRIu32 " k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
 									}
 									final_indices[(k + l) % (region_size + interval_size)] = k + l;	
 								}
@@ -662,7 +662,7 @@ int main(int argc, char **argv) {
 
 							if (verbose) {
 								decode_hash(hash_val, region_size, window_size, interval_size);
-								fprintf(stderr, " %lu\n", hash_table[hash_val]);
+								fprintf(stderr, " %" PRIu32 "\n", hash_table[hash_val]);
 							}
 
 							if (phase == 0) {
@@ -674,7 +674,7 @@ int main(int argc, char **argv) {
 									if (mask == 1) {
 										for (int k = i - region_size + 1, l = 0; l < (region_size); l++) {
 											if (verbose) {
-												fprintf(stderr, "2: (k + l) %% (region_size + interval_size) = %lu k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
+												fprintf(stderr, "2: (k + l) %% (region_size + interval_size) = %" PRIu32 " k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
 											}
 											final_indices[(k + l) % (region_size + interval_size)] = k + l;	
 										}
@@ -786,7 +786,7 @@ int main(int argc, char **argv) {
 
 								if (verbose) {
 									decode_hash(hash_val, region_size, window_size, interval_size);
-									fprintf(stderr, " %lu\n", hash_table[hash_val]);
+									fprintf(stderr, " %" PRIu32 "\n", hash_table[hash_val]);
 								}
 
 								if (phase == 0) {
@@ -799,7 +799,7 @@ int main(int argc, char **argv) {
 										if (mask == 1) {
 											for (int k = i - region_size + 1, l = 0; l < (region_size); l++) {
 												if (verbose) {
-													fprintf(stderr, "3: (k + l) %% (region_size + interval_size) = %lu k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
+													fprintf(stderr, "3: (k + l) %% (region_size + interval_size) = %" PRIu32 " k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
 												}
 												final_indices[(k + l) % (region_size + interval_size)] = k + l;	
 											}
