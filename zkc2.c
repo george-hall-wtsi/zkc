@@ -45,21 +45,26 @@ void read_hash_table_from_file(uint32_t *hash_table, char *hash_table_location, 
 	input_file = fopen(hash_table_location, "rb");
 
 	if (input_file == NULL) {
-		fprintf(stderr, "WARNING: Failed to open hash table file\n");
+		fprintf(stderr, "ERROR: Failed to open hash table file\n");
 		exit(EXIT_FAILURE);
 	}
 	
 	if (fread(hash_table, sizeof(uint32_t), NUM_CELLS_HASH_TABLE, input_file) != NUM_CELLS_HASH_TABLE) {
-		fprintf(stderr, "WARNING: Failed to load hash table from file\n");
+		fprintf(stderr, "ERROR: Failed to load hash table from file\n");
 		exit(EXIT_FAILURE);
 	}
 
-	if (!quiet) {
+	if (fclose(input_file) != 0) {
+		if (!quiet) {
+			fprintf(stderr ,"WARNING: Failed to close input file - continuing anyway\n");
+		}
+	}
+
+	else if (!quiet) {
 		fprintf(stderr, "Successfully read hash table from file\n");
 	}
 
 	return;
-
 }
 
 
@@ -82,7 +87,13 @@ void write_hash_table_to_file(uint32_t *hash_table, char *hash_file_name, bool q
 		return;
 	}
 
-	if (!quiet) {
+	if (fclose(out_file) != 0) {
+		if (!quiet) {
+			fprintf(stderr, "WARNING: Failed to close hash table file - continuing anyway\n");
+		}
+	}
+
+	else if (!quiet) {
 		fprintf(stderr, "Successfully wrote hash table to file\n");
 	}
 
