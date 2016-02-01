@@ -332,8 +332,8 @@ int main(int argc, char **argv) {
 	unsigned int window_size;			/* Number of bases in window             3      10       3       10     3      10      3      10      3		*/
 	unsigned int num_regions;			/*										         ^-- interval           ^-- region							*/
 										/*										<--------------------------- window --------------------------->	*/
-	char *where_to_save_hash_table = "\0";
-	char *stored_hash_table_location = "\0";
+	char *where_to_save_hash_table = NULL;
+	char *stored_hash_table_location = NULL;
 	unsigned long i, j; /* Counter */
 	unsigned long new_base_loc;
 	long hist[HISTOGRAM_SIZE];
@@ -462,7 +462,7 @@ int main(int argc, char **argv) {
 		window_size = ((num_regions - 1) * interval_size) + 15;
 	}
 
-	if ((strlen(stored_hash_table_location) != 0) && (strlen(where_to_save_hash_table) != 0)) {
+	if (stored_hash_table_location && where_to_save_hash_table) {
 		fprintf(stderr, "ERROR: Cannot specify both --in and --out\n");
 		exit(EXIT_FAILURE);
 	}
@@ -498,14 +498,13 @@ int main(int argc, char **argv) {
 
 	format = which_format(input_file);
 
-	if (strlen(stored_hash_table_location) == 0) {
+	if (stored_hash_table_location == NULL) {
 		if (!quiet) {
 			fprintf(stderr, "Counting k-mers into hash table\n");
 		}
 		phase = 0;
 	}
 	else {
-
 		read_hash_table_from_file(hash_table, stored_hash_table_location, quiet);
 
 		if (print_hist) {
@@ -890,7 +889,7 @@ int main(int argc, char **argv) {
 		}
 
 		if (phase == 0) {
-			if (strlen(where_to_save_hash_table) != 0) {
+			if (where_to_save_hash_table) {
 				write_hash_table_to_file(hash_table, where_to_save_hash_table, quiet);
 			}
 
