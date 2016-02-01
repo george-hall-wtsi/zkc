@@ -603,9 +603,7 @@ int main(int argc, char **argv) {
 						if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
 
 							if (mask == 1) {
-								int k;
-								int l;
-								for (k = i - region_size + 1, l = 0; l < (region_size); l++) {
+								for (int k = i - region_size + 1, l = 0; l < (region_size); l++) {
 									if (verbose) {
 										fprintf(stderr, "1: (k + l) %% (region_size + interval_size) = %lu k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
 									}
@@ -674,9 +672,7 @@ int main(int argc, char **argv) {
 							else if (phase == 2) {
 								if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
 									if (mask == 1) {
-										int k;
-										int l;
-										for (k = i - region_size + 1, l = 0; l < (region_size); l++) {
+										for (int k = i - region_size + 1, l = 0; l < (region_size); l++) {
 											if (verbose) {
 												fprintf(stderr, "2: (k + l) %% (region_size + interval_size) = %lu k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
 											}
@@ -801,9 +797,7 @@ int main(int argc, char **argv) {
 									if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
 
 										if (mask == 1) {
-											int k;
-											int l;
-											for (k = i - region_size + 1, l = 0; l < (region_size); l++) {
+											for (int k = i - region_size + 1, l = 0; l < (region_size); l++) {
 												if (verbose) {
 													fprintf(stderr, "3: (k + l) %% (region_size + interval_size) = %lu k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
 												}
