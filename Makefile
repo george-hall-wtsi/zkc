@@ -1,4 +1,4 @@
-CFLAGS = -O3 -Wall 
+CFLAGS = -O3 -Wall -std=c99
 CC = cc
 
 SRCS = zkc2.c c_tools.c fastlib.c
