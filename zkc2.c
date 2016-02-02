@@ -602,7 +602,7 @@ int main(int argc, char **argv) {
 
 					if (verbose) {
 						decode_hash(hash_val, region_size, window_size, interval_size);
-						fprintf(stderr, " %" PRIu32 "\n", hash_table[hash_val]);
+						fprintf(stderr, " %" PRIu32 "\n", hash_table[hash_to_use]);
 					}
 
 					if (phase == 0) {
@@ -672,7 +672,7 @@ int main(int argc, char **argv) {
 
 							if (verbose) {
 								decode_hash(hash_val, region_size, window_size, interval_size);
-								fprintf(stderr, " %" PRIu32 "\n", hash_table[hash_val]);
+								fprintf(stderr, " %" PRIu32 "\n", hash_table[hash_to_use]);
 							}
 
 							if (phase == 0) {
@@ -796,7 +796,7 @@ int main(int argc, char **argv) {
 
 								if (verbose) {
 									decode_hash(hash_val, region_size, window_size, interval_size);
-									fprintf(stderr, " %" PRIu32 "\n", hash_table[hash_val]);
+									fprintf(stderr, " %" PRIu32 "\n", hash_table[hash_to_use]);
 								}
 
 								if (phase == 0) {
