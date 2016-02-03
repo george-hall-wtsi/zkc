@@ -358,7 +358,7 @@ int main(int argc, char **argv) {
 	unsigned int max_val = 999;
 	unsigned int cutoff = 50;
 	unsigned int interval_size = 0;		/* Number of bases between regions      |||				|||            |||            |||            |||	*/
-	unsigned int region_size;			/* Number of bases in each region       ----------------------------------------------------------------	*/
+	unsigned int region_size = -1;		/* Number of bases in each region       ----------------------------------------------------------------	*/
 	unsigned int window_size;			/* Number of bases in window             3      10       3       10     3      10      3      10      3		*/
 	unsigned int num_regions;			/*										         ^-- interval           ^-- region							*/
 										/*										<--------------------------- window --------------------------->	*/
@@ -381,9 +381,7 @@ int main(int argc, char **argv) {
 	int new_base_hash_array[5];
 	unsigned int iCount; 
 	int phase; /* 0 => Pass 1; 1 => Pass 2 */
-	int kmer_size = 17; /* Can be 15 or 17 */
-
-	region_size = kmer_size;
+	int kmer_size = 15; /* Can be 15 or 17 */
 
 	phase = 999; /* Default phase = 999, meaning that I have forgotten to set it to anything meaningful */
 
@@ -495,6 +493,10 @@ int main(int argc, char **argv) {
 		}
 	}
 
+	if (region_size == -1) {
+		region_size = kmer_size;
+	}
+
 	if (kmer_size == 15) {
 		if (region_size != 1 && region_size != 3 && region_size != 5 && region_size != 15) {
 			fprintf(stderr, "ERROR: Region size must be either 1, 3, 5, or 15\n");
@@ -504,14 +506,14 @@ int main(int argc, char **argv) {
 	}
 
 	else if (kmer_size == 17) {
-		if (region_size != 17 || interval_size != 1) {
+		if (region_size != 17 || interval_size != 0) {
 			print_usage(argv[0]);
 		}
 		num_cells_hash_table = 17179869184; /* = 4^17 */
 	}
 
 	else {
-		fprintf(stderr, "ERROR\n");
+		fprintf(stderr, "ERROR: K-mer size must be 15 or 17\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -542,6 +544,9 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
+	if (verbose) {
+		fprintf(stderr, "Region size = %u Number regions = %d Interval size = %u Window size = %u K-mer size = %d\n", region_size, num_regions, interval_size, window_size, kmer_size);
+	}
 
 	/* Hash table is 4^15 cells which are guaranteed to be capable of holding the count of a k-mer 
 	 * providing that the count does not exceed 2^32 - the minimum size of a long). 
