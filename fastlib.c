@@ -263,9 +263,6 @@ seg_return get_next_seg(FILE *f, int format) {
 
 		int state = 1;
 		bool bEOF = false; /* Set to true if EOF detected */
-		char *seq, 
-			 *line,
-			 *qual;
 		char c;
 
 		unsigned long qual_len = 0;
@@ -296,8 +293,6 @@ seg_return get_next_seg(FILE *f, int format) {
 			if (state == 1) {
 				if (line[0] == '+') {
 					/* i.e. this is in fact the header for quality scores */
-					new_segment.seq = seq;
-
 					state = 2;
 					qual_len = 0;
 				}
@@ -309,14 +304,14 @@ seg_return get_next_seg(FILE *f, int format) {
 								buffsize *= 2;
 							}
 
-							if ((tmp = realloc(seq, buffsize + 1)) == NULL) {
+							if ((tmp = realloc(new_segment.seq, buffsize + 1)) == NULL) {
 								fprintf(stderr, "Out of memory (realloc for sequence)\n");
 								exit(EXIT_FAILURE);
 							}
-							seq = tmp;
+							new_segment.seq = tmp;
 						}
 
-						strcpy(seq, line);
+						strcpy(new_segment.seq, line); /* This line is causing a seqfault */
 					}
 					else {
 						if ((seq_len + strlen(line) > buffsize)) {
@@ -324,14 +319,14 @@ seg_return get_next_seg(FILE *f, int format) {
 								buffsize *= 2;
 							}
 
-							if ((tmp = realloc(seq, buffsize + 1)) == NULL) {
+							if ((tmp = realloc(new_segment.seq, buffsize + 1)) == NULL) {
 								fprintf(stderr, "Out of memory (realloc for sequence)\n");
 								exit(EXIT_FAILURE);
 							}
-							seq = tmp;
+							new_segment.seq = tmp;
 						}
 
-						strcat(seq, line);
+						strcat(new_segment.seq, line);
 					}
 
 					seq_len += strlen(line);
@@ -341,7 +336,7 @@ seg_return get_next_seg(FILE *f, int format) {
 			/* Quality Values */ 
 			else if (state == 2) { 
 				if (qual_len == 0) {
-					if ((qual = malloc(buffsize + 1)) == NULL) {
+					if ((new_segment.qual = malloc(buffsize + 1)) == NULL) {
 						fprintf(stderr, "Out of memory (malloc for qualities)\n");
 						exit(EXIT_FAILURE);
 					}
@@ -351,14 +346,14 @@ seg_return get_next_seg(FILE *f, int format) {
 							buffsize *= 2;
 						}
 
-						if ((tmp = realloc(qual, buffsize + 1)) == NULL) {
+						if ((tmp = realloc(new_segment.qual, buffsize + 1)) == NULL) {
 							fprintf(stderr, "Out of memory (realloc for qualities)\n");
 							exit(EXIT_FAILURE);
 						}
-						qual = tmp;
+						new_segment.qual = tmp;
 					}
 
-					strcpy(qual, line);
+					strcpy(new_segment.qual, line);
 				}
 
 				else if (qual_len < seq_len) {
@@ -367,21 +362,20 @@ seg_return get_next_seg(FILE *f, int format) {
 							buffsize *= 2;
 						}
 
-						if ((tmp = realloc(qual, buffsize + 1)) == NULL) {
+						if ((tmp = realloc(new_segment.qual, buffsize + 1)) == NULL) {
 							fprintf(stderr, "Out of memory (realloc for qualities)\n");
 							exit(EXIT_FAILURE);
 						}
-						qual = tmp;
+						new_segment.qual = tmp;
 					}
 
-					strcat(seq, line);
+					strcat(new_segment.seq, line);
 				}	
 
 				qual_len += strlen(line);
 
 				if (qual_len == seq_len) {
 					/* End of quality values */
-					new_segment.qual = qual;
 					free(line);
 
 					/* Check for EOF */
