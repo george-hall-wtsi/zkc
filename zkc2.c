@@ -269,7 +269,12 @@ new_hashes shift_hash(uint64_t current_seq_hash, uint64_t current_rc_hash, unsig
 	uint64_t rc_mask;
 	int jump = (2 * kmer_size) / num_regions; /* Distance to next region */
 
-	if (kmer_size == 15) {
+	if (kmer_size == 13) {
+		seq_mask = 67108860;
+		rc_mask = 16777215;
+	}
+
+	else if (kmer_size == 15) {
 		if (num_regions == 1) {
 			seq_mask = 1073741820;	/* = 0011 1111 1111 1111 1111 1111 1111 1100 */
 			rc_mask = 268435455;	/* = 0000 1111 1111 1111 1111 1111 1111 1111 */
@@ -299,6 +304,10 @@ new_hashes shift_hash(uint64_t current_seq_hash, uint64_t current_rc_hash, unsig
 	else if (kmer_size == 17) {
 		seq_mask = 17179869180; /* 0011 1111 1111 1111 1111 1111 1111 1111 1100 */
 		rc_mask = 4294967295; /* 0000 1111 1111 1111 1111 1111 1111 1111 1111 */
+	}
+
+	else {
+		exit(1);
 	}
 
 	current_seq_hash <<= 2;
@@ -496,7 +505,15 @@ int main(int argc, char **argv) {
 		region_size = kmer_size;
 	}
 
-	if (kmer_size == 15) {
+	if (kmer_size == 13) {
+		if (region_size != 13 || interval_size != 0) {
+
+			print_usage(argv[0]);
+		}   
+		num_cells_hash_table = 67108864; /* = 4^13 */
+	}
+	 
+	else if (kmer_size == 15) {
 		if (region_size != 1 && region_size != 3 && region_size != 5 && region_size != 15) {
 			fprintf(stderr, "ERROR: Region size must be either 1, 3, 5, or 15\n");
 			exit(EXIT_FAILURE);
@@ -512,7 +529,7 @@ int main(int argc, char **argv) {
 	}
 
 	else {
-		fprintf(stderr, "ERROR: K-mer size must be 15 or 17\n");
+		fprintf(stderr, "ERROR: K-mer size must be 13, 15, or 17\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -547,7 +564,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "Region size = %u Number regions = %d Interval size = %u Window size = %u K-mer size = %d\n", region_size, num_regions, interval_size, window_size, kmer_size);
 	}
 
-	/* Hash table is 4^15 cells which are guaranteed to be capable of holding the count of a k-mer 
+	/* Hash table is 4**kmer_size cells which are guaranteed to be capable of holding the count of a k-mer 
 	 * providing that the count does not exceed 2^32 - the minimum size of a long). 
 	 */
 
@@ -659,13 +676,13 @@ int main(int argc, char **argv) {
 
 					i += window_size - 1; 
 
-					if (phase == 0) {
-						hash_table[hash_to_use] += 1;
-					}
-
 					if (verbose) {
 						decode_all_hashes(hash_val, rc_hash, canonical_hash, region_size, window_size, interval_size, kmer_size, hash_to_use, hash_table);
 						fprintf(stderr, " [1]\n");
+					}
+
+					if (phase == 0) {
+						hash_table[hash_to_use] += 1;
 					}
 
 					else if (phase == 2) {
@@ -729,13 +746,13 @@ int main(int argc, char **argv) {
 
 							hash_to_use = use_canonical ? canonical_hash : hash_val;
 
-							if (phase == 0) {
-								hash_table[hash_to_use] += 1;
-							}
-
 							if (verbose) {
 								decode_all_hashes(hash_val, rc_hash, canonical_hash, region_size, window_size, interval_size, kmer_size, hash_to_use, hash_table);
 								fprintf(stderr, " [2]\n");
+							}
+
+							if (phase == 0) {
+								hash_table[hash_to_use] += 1;
 							}
 
 							else if (phase == 2) {
@@ -853,18 +870,17 @@ int main(int argc, char **argv) {
 								/* Move to end of k-mer word */
 								i += window_size - 1;
 
-								if (phase == 0) {
-									hash_table[hash_to_use] += 1;
-								}
-
 								if (verbose) {
 									decode_all_hashes(hash_val, rc_hash, canonical_hash, region_size, window_size, interval_size, kmer_size, hash_to_use, hash_table);
 									fprintf(stderr, " [3]\n");
 								}
 
+								if (phase == 0) {
+									hash_table[hash_to_use] += 1;
+								}
+
 								else if (phase == 2) {
 									if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
-
 										if (mask == 1) {
 											for (int k = i - region_size + 1, l = 0; l < (region_size); l++) {
 												if (verbose) {
