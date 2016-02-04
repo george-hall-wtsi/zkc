@@ -12,7 +12,7 @@ zkc2: $(OBJS)
 	$(CC) $(CFLAGS) -o zkc2 $(OBJS)
 
 # Aliases
-val: CFLAGS = -O0 -g
+val: CFLAGS = -O0 -g -std=c99
 val: zkc2-test
 prod: zkc2
 	
