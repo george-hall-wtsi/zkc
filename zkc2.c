@@ -31,8 +31,6 @@
 #include "fastlib.h"
 #include "zkc2.h"
 
-#define HISTOGRAM_SIZE 10001
-
 
 void read_hash_table_from_file(uint32_t *hash_table, char *hash_table_location, bool quiet, uint64_t num_cells_hash_table) {
 
@@ -367,7 +365,8 @@ int main(int argc, char **argv) {
 	uint64_t num_cells_hash_table;
 	uint64_t i, j; /* Counters */
 	unsigned long new_base_loc;
-	long hist[HISTOGRAM_SIZE];
+	int histogram_size = 10001;
+	long hist[histogram_size];
 	bool extract_reads = false;
 	bool print_hist = false;
 	bool quiet = false;
@@ -971,22 +970,22 @@ int main(int argc, char **argv) {
 				fprintf(stderr, "Computing histogram\n");
 			}
 
-			for (i = 0; i < HISTOGRAM_SIZE; i++) {
+			for (i = 0; i < histogram_size; i++) {
 				hist[i] = 0;
 			}
 
 			for (i = 0; i < num_cells_hash_table; i++) {
 				if (hash_table[i] > 0) {
-					if (hash_table[i] < HISTOGRAM_SIZE) {
+					if (hash_table[i] < histogram_size) {
 						hist[hash_table[i] - 1]++;
 					}
 					else {
-						hist[HISTOGRAM_SIZE - 1]++;
+						hist[histogram_size - 1]++;
 					}
 				}
 			}
 
-			for (i = 0; i < HISTOGRAM_SIZE; i++) {
+			for (i = 0; i < histogram_size; i++) {
 				if (hist[i] > 0) {
 					printf("%lu %ld\n", i + 1, hist[i]);
 				}
