@@ -1,1 +1,13 @@
-/nfs/users/nfs_g/gh10/Documents/Code/C/fasttools/c_tools.h
+#ifndef C_TOOLS_H
+
+#define C_TOOLS_H
+
+typedef struct {
+	char* line;
+	bool bEOF;
+} line_return;
+
+line_return get_next_line(FILE* f);
+bool is_str_of_digits(char* str);
+
+#endif
