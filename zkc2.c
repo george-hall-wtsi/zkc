@@ -120,15 +120,14 @@ seq_hash_return hash_sequence(char *seq, unsigned int region_size, unsigned int 
 
 	uint64_t seq_hash = 0;
 	int base_hash;
-	unsigned int i;
 	seq_hash_return to_return;
 
 	to_return.found_n = false;
 
-	for (i = 0; i < window_size; i++) {
-		base_hash = hash_base(seq[i]);
+	for (unsigned int base_index = 0; base_index < window_size; base_index++) {
+		base_hash = hash_base(seq[base_index]);
 		if (base_hash != -1) {
-			if ((i % (region_size + interval_size)) < region_size) {
+			if ((base_index % (region_size + interval_size)) < region_size) {
 				seq_hash += base_hash;
 				seq_hash <<= 2;
 			}
@@ -152,9 +151,8 @@ uint64_t hash_rc(uint64_t seq_hash, int kmer_size) {
 
 	uint64_t mask = -4; /* All bits should be set to 1 except least significant two */
 	uint64_t rc_hash = 0;
-	int i;
 
-	for (i = 0; i < (kmer_size - 1); i++) {
+	for (int i = 0; i < (kmer_size - 1); i++) {
 		rc_hash += ~((seq_hash & 3) | mask);
 		rc_hash <<= 2;
 		seq_hash >>= 2;
@@ -168,11 +166,10 @@ uint64_t hash_rc(uint64_t seq_hash, int kmer_size) {
 
 void decode_hash(uint64_t hash, unsigned int region_size, unsigned int window_size, unsigned int interval_size, int kmer_size) {
 
-	unsigned int j;
 	int shift = 2 * (kmer_size - 1);
 
-	for (j = 0; j < window_size; j++) {
-		if ((j % (region_size + interval_size)) < region_size) {
+	for (unsigned int base_index = 0; base_index < window_size; base_index++) {
+		if ((base_index % (region_size + interval_size)) < region_size) {
 			if ((hash & (3ULL << shift)) == 0) {
 				putc('A', stderr);
 			}
@@ -264,7 +261,6 @@ void print_usage(char *prog_loc) {
 new_hashes shift_hash(uint64_t current_seq_hash, uint64_t current_rc_hash, unsigned int num_regions, int *base_hash_array, int kmer_size) {
 
 	new_hashes to_return;
-	int iCount;
 	uint64_t seq_mask; 
 	uint64_t rc_mask;
 	int jump = (2 * kmer_size) / num_regions; /* Distance to next region */
@@ -321,9 +317,9 @@ new_hashes shift_hash(uint64_t current_seq_hash, uint64_t current_rc_hash, unsig
 	to_return.new_hash = current_seq_hash;
 	to_return.new_rc_hash = current_rc_hash;
 
-	for (iCount = 0; iCount < num_regions; iCount++) {
-		to_return.new_hash += base_hash_array[iCount] << (jump * (num_regions - iCount - 1));
-		to_return.new_rc_hash += (((uint64_t) (base_hash_array[num_regions - iCount - 1] ^ 3)) << (((2 * kmer_size) - 2) - (iCount * jump)));
+	for (int i = 0; i < num_regions; i++) {
+		to_return.new_hash += base_hash_array[i] << (jump * (num_regions - i - 1));
+		to_return.new_rc_hash += (((uint64_t) (base_hash_array[num_regions - i - 1] ^ 3)) << (((2 * kmer_size) - 2) - (i * jump)));
 	}
 
 	to_return.canonical_hash = (to_return.new_hash < to_return.new_rc_hash) ? to_return.new_hash : to_return.new_rc_hash;
@@ -385,7 +381,6 @@ int main(int argc, char **argv) {
 	unsigned long end_newest_kmer = 0; /* Index of the end of the most recently found k-mer word in the desired range. Set to 0 to avoid the first base being unmasked. */
 	unsigned long *final_indices; /* Array holding the indices of the final base currently masked for each set of bases modulo (region_size + interval_size) */
 	unsigned long final_index;
-	int arg_i;
 	int new_base_hash_array[5];
 	unsigned int iCount; 
 	int phase; /* 0 => Pass 1; 1 => Pass 2 */
@@ -414,7 +409,7 @@ int main(int argc, char **argv) {
 		print_usage(argv[0]);
 	}
 
-	for (arg_i = 2; arg_i < argc - 1; arg_i++) {
+	for (int arg_i = 2; arg_i < argc - 1; arg_i++) {
 
 		if (!strcmp(argv[arg_i], "-u") || !strcmp(argv[arg_i], "--cutoff")) {
 			if (!extract_reads) {
