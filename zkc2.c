@@ -381,7 +381,7 @@ int main(int argc, char **argv) {
 	bool quiet = false;
 	bool verbose = false;
 	bool use_canonical = false;
-	int mask = -1; /* -1 = unassigned (error); 0 = no masking; 1 = strict mask; 2 = normal mask */
+	int mask = 2; /* 0 = no masking; 1 = strict mask; 2 = normal mask */
 	unsigned long end_newest_kmer = 0; /* Index of the end of the most recently found k-mer word in the desired range. Set to 0 to avoid the first base being unmasked. */
 	unsigned long *final_indices; /* Array holding the indices of the final base currently masked for each set of bases modulo (region_size + interval_size) */
 	unsigned long final_index;
@@ -636,10 +636,6 @@ int main(int argc, char **argv) {
 	num_regions = (kmer_size / region_size);
 	window_size = ((num_regions - 1) * interval_size) + kmer_size;
 	
-	if (mask == -1) {
-		mask = 2; /* Default to normal mask */
-	}
-
 	if ((input_file = fopen(argv[argc - 1], "r")) == NULL) {
 		fprintf(stderr, "ERROR: Could not open data file\n");
 		exit(EXIT_FAILURE);
