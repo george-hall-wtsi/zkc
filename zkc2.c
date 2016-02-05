@@ -372,7 +372,6 @@ int main(int argc, char **argv) {
 	char *where_to_save_hash_table = NULL;
 	char *stored_hash_table_location = NULL;
 	uint64_t num_cells_hash_table;
-	uint64_t j; /* Counter */
 	uint64_t base_index; 
 	unsigned long new_base_loc;
 	int histogram_size = 10001;
@@ -888,20 +887,20 @@ int main(int argc, char **argv) {
 										fprintf(stderr, "(4) Masking at base_index = %lu\n", base_index);
 									}
 									if (mask == 1) {
-										for (j = base_index - window_size + 1; j < base_index; j++) {
-											final_index = final_indices[j % (region_size + interval_size)];
+										for (uint64_t i = base_index - window_size + 1; i < base_index; i++) {
+											final_index = final_indices[i % (region_size + interval_size)];
 											if (verbose) {
 												fprintf(stderr, "4: Final index = %lu\n", final_index);
 											}
-											if ((final_index == 0) || (j > final_index)) {
-												ret.segment.seq[j] = 'N';
+											if ((final_index == 0) || (i > final_index)) {
+												ret.segment.seq[i] = 'N';
 											}
 										}
 									}
 									else if (mask == 2) {
-										for (j = base_index - window_size + 1; j < base_index; j++) {
-											if ((end_newest_kmer == 0) || (j > end_newest_kmer)) {
-												ret.segment.seq[j] = 'N';
+										for (uint64_t i = base_index - window_size + 1; i < base_index; i++) {
+											if ((end_newest_kmer == 0) || (i > end_newest_kmer)) {
+												ret.segment.seq[i] = 'N';
 											}
 										}
 									}
@@ -1011,19 +1010,19 @@ int main(int argc, char **argv) {
 							if (verbose) {
 								fprintf(stderr, "(7) Masking at base_index = %lu\n", base_index);
 							}
-							for (j = base_index - window_size; j < base_index; j++) {
+							for (uint64_t i = base_index - window_size; i < base_index; i++) {
 								if (mask == 1) {
-									final_index = final_indices[j % (region_size + interval_size)];
+									final_index = final_indices[i % (region_size + interval_size)];
 									if (verbose) {
 										fprintf(stderr, "7: Final index = %lu\n", final_index);
 									}
-									if ((final_index == 0) || (j > final_index)) {
-										ret.segment.seq[j] = 'N';
+									if ((final_index == 0) || (i > final_index)) {
+										ret.segment.seq[i] = 'N';
 									}
 								}
 								else if (mask == 2) {
-									if ((end_newest_kmer == 0) || (j > end_newest_kmer)) {
-										ret.segment.seq[j] = 'N';
+									if ((end_newest_kmer == 0) || (i > end_newest_kmer)) {
+										ret.segment.seq[i] = 'N';
 									}
 								}
 							}
