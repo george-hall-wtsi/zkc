@@ -361,14 +361,14 @@ int main(int argc, char **argv) {
 	seq_hash_return hash_seq;
 	new_hashes new_hashes_triple;
 	unsigned int kmer_hits = 0;
-	unsigned int min_val = 1;
-	unsigned int max_val = 999;
-	unsigned int cutoff = 50;
-	unsigned int interval_size = 0;		/* Number of bases between regions      |||				|||            |||            |||            |||	*/
-	unsigned int region_size = -1;		/* Number of bases in each region       ----------------------------------------------------------------	*/
-	unsigned int window_size;			/* Number of bases in window             3      10       3       10     3      10      3      10      3		*/
-	unsigned int num_regions;			/*										         ^-- interval           ^-- region							*/
-										/*										<--------------------------- window --------------------------->	*/
+	int min_val = 0;
+	int max_val = 0;
+	int cutoff = 50;
+	int interval_size = -1;	/* Number of bases between regions      |||				|||            |||            |||            |||	*/
+	int region_size = -1;	/* Number of bases in each region       ----------------------------------------------------------------	*/
+	int window_size;		/* Number of bases in window             3      10       3       10     3      10      3      10      3		*/
+	int num_regions;		/*										         ^-- interval           ^-- region							*/
+							/*										<--------------------------- window --------------------------->	*/
 	char *where_to_save_hash_table = NULL;
 	char *stored_hash_table_location = NULL;
 	uint64_t num_cells_hash_table;
@@ -389,7 +389,7 @@ int main(int argc, char **argv) {
 	int new_base_hash_array[5];
 	unsigned int iCount; 
 	int phase; /* 0 => Pass 1; 1 => Pass 2 */
-	int kmer_size = 15; /* Can be 15 or 17 */
+	int kmer_size = 0; 
 
 	phase = 999; /* Default phase = 999, meaning that I have forgotten to set it to anything meaningful */
 
@@ -415,48 +415,92 @@ int main(int argc, char **argv) {
 	}
 
 	for (arg_i = 2; arg_i < argc - 1; arg_i++) {
+
 		if (!strcmp(argv[arg_i], "-u") || !strcmp(argv[arg_i], "--cutoff")) {
+			if (!extract_reads) {
+				fprintf(stderr, "ERROR: -u/--cutoff must not be specified in this mode\n");
+				exit(EXIT_FAILURE);
+			}
 			if (is_str_of_digits(argv[++arg_i])) {
 				cutoff = atoi(argv[arg_i]);
+				if (cutoff < 0) {
+					fprintf(stderr, "ERROR: -u/--cutoff must not be negative\n");
+					exit(EXIT_FAILURE);
+				}
 			}
 			else {
 				print_usage(argv[0]);
 			}
 		}
+
 		else if (!strcmp(argv[arg_i], "-a") || !strcmp(argv[arg_i], "--min")) {
+			if (!extract_reads) {
+				fprintf(stderr, "ERROR: -a/--min-val must not be specified in this mode\n");
+				exit(EXIT_FAILURE);
+			}
 			if (is_str_of_digits(argv[++arg_i])) {
 				min_val = atoi(argv[arg_i]);
+				if (min_val < 0) {
+					fprintf(stderr, "ERROR: -a/--min-val must not be negative\n");
+					exit(EXIT_FAILURE);
+				}
 			}
 			else {
 				print_usage(argv[0]);
 			}
 		}
+
 		else if (!strcmp(argv[arg_i], "-b") || !strcmp(argv[arg_i], "--max")) {
+			if (!extract_reads) {
+				fprintf(stderr, "ERROR: -b/--max-val must not be specified in this mode\n");
+				exit(EXIT_FAILURE);
+			}
 			if (is_str_of_digits(argv[++arg_i])) {
 				max_val = atoi(argv[arg_i]);
+				if (max_val < 0) {
+					fprintf(stderr, "ERROR: -b/--max-val must not be negative\n");
+					exit(EXIT_FAILURE);
+				}
 			}
 			else {
 				print_usage(argv[0]);
 			}
 		}
+
 		else if (!strcmp(argv[arg_i], "-q") || !strcmp(argv[arg_i], "--quiet")) {
 			quiet = true;
 		}
+
 		else if (!strcmp(argv[arg_i], "-v") || !strcmp(argv[arg_i], "--verbose")) {
 			verbose = true;
 		}
+
 		else if (!strcmp(argv[arg_i], "-c") || !strcmp(argv[arg_i], "--canonical")) {
 			use_canonical = true;
 		}
+
 		else if (!strcmp(argv[arg_i], "-k") || !strcmp(argv[arg_i], "--kmer-size")) {
+			if (kmer_size != 0) {
+				fprintf(stderr, "ERROR: -k/--kmer-size specified more than once\n");
+				exit(EXIT_FAILURE);
+			}
 			if (is_str_of_digits(argv[++arg_i])) {
 				kmer_size = atoi(argv[arg_i]);
+				if (kmer_size != 13 && kmer_size != 15 && kmer_size != 17) {
+					fprintf(stderr, "ERROR: -k/--kmer-size must be 13, 15, or 17\n");
+					exit(EXIT_FAILURE);
+				}
 			}
 			else {
 				print_usage(argv[0]);
 			}
 		}
+
 		else if (!strcmp(argv[arg_i], "-d") || !strcmp(argv[arg_i], "--disable-mask")) {
+			if (!extract_reads) {
+				fprintf(stderr, "ERROR: Mask must not be specified in this mode\n");
+				exit(EXIT_FAILURE);
+			}
 			if (mask == 1) {
 				fprintf(stderr, "ERROR: --disable-mask cannot be used with --strict-mask\n");
 				print_usage(argv[0]);
@@ -466,6 +510,10 @@ int main(int argc, char **argv) {
 			}
 		}
 		else if (!strcmp(argv[arg_i], "-s") || !strcmp(argv[arg_i], "--strict-mask")) {
+			if (!extract_reads) {
+				fprintf(stderr, "ERROR: Mask must not be specified in this mode\n");
+				exit(EXIT_FAILURE);
+			}
 			if (mask == 0) {
 				fprintf(stderr, "ERROR: --strict-mask cannot be used with --disable-mask\n");
 				print_usage(argv[0]);
@@ -474,83 +522,120 @@ int main(int argc, char **argv) {
 				mask = 1;
 			}
 		}
+
 		else if (!strcmp(argv[arg_i], "-i") || !strcmp(argv[arg_i], "--in")) {
 			stored_hash_table_location = argv[++arg_i];
 		}
+
 		else if (!strcmp(argv[arg_i], "-o") || !strcmp(argv[arg_i], "--out")) {
 			where_to_save_hash_table = argv[++arg_i];
 		}
+
 		else if (!strcmp(argv[arg_i], "-r") || !strcmp(argv[arg_i], "--region-size")) {
 			if (is_str_of_digits(argv[++arg_i])) {
 				region_size = atoi(argv[arg_i]);
+				if (region_size < 0) {
+					fprintf(stderr, "ERROR: -r/--region-size cannot be negative\n");
+					exit(EXIT_FAILURE);
+				}
 			}
 			else {
 				print_usage(argv[0]);
 			}
 		}
+
 		else if (!strcmp(argv[arg_i], "-g") || !strcmp(argv[arg_i], "--interval-size")) {
 			if (is_str_of_digits(argv[++arg_i])) {
 				interval_size = atoi(argv[arg_i]);
+				if (interval_size < 0) {
+					fprintf(stderr, "ERROR: -g/--interval-size cannot be negative\n");
+					exit(EXIT_FAILURE);
+				}
 			}
 			else {
 				print_usage(argv[0]);
 			}
 		}
+
 		else {
 			print_usage(argv[0]);
 		}
 	}
 
-	if (region_size == -1) {
-		region_size = kmer_size;
-	}
 
-	if (kmer_size == 13) {
-		if (region_size != 13 || interval_size != 0) {
+	/* ----- Error check user input ----- */
 
-			print_usage(argv[0]);
-		}   
-		num_cells_hash_table = 67108864; /* = 4^13 */
-	}
-	 
-	else if (kmer_size == 15) {
-		if (region_size != 1 && region_size != 3 && region_size != 5 && region_size != 15) {
-			fprintf(stderr, "ERROR: Region size must be either 1, 3, 5, or 15\n");
-			exit(EXIT_FAILURE);
-		}
-		num_cells_hash_table = 1073741824; /* = 4^15 */
-	}
 
-	else if (kmer_size == 17) {
-		if (region_size != 17 || interval_size != 0) {
-			print_usage(argv[0]);
-		}
-		num_cells_hash_table = 17179869184; /* = 4^17 */
-	}
-
-	else {
-		fprintf(stderr, "ERROR: K-mer size must be 13, 15, or 17\n");
+	if (kmer_size == 0) {
+		fprintf(stderr, "ERROR: -k/--kmer-size must be specified\n");
 		exit(EXIT_FAILURE);
 	}
 
-	num_regions = (kmer_size / region_size);
-	window_size = ((num_regions - 1) * interval_size) + kmer_size;
+	if (extract_reads) {
+		if (min_val == 0 || max_val == 0) {
+			fprintf(stderr, "ERROR: -a/--min-val and -b/--max-val must both be specified and non-zero when extracting reads\n");
+			exit(EXIT_FAILURE);
+		}
+
+		if (max_val < min_val) {
+			fprintf(stderr, "ERROR: -a/--min-val must not be greater than -b/--max-val\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	if (kmer_size == 15) {
+		if (region_size != -1) {
+			if (region_size != 1 && region_size != 3 && region_size != 5 && region_size != 15) {
+				fprintf(stderr, "ERROR: Region size must be either 1, 3, 5, or 15\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+	}
+
+	else {
+		if (region_size != -1) {
+			fprintf(stderr, "ERROR: -r/--region-size must not be specified if -k/--kmer-size is not 15\n");
+			exit(EXIT_FAILURE);
+		}
+
+		if (interval_size != -1) {
+			fprintf(stderr, "ERROR: -g/--interval-size must not be specified if -k/--kmer-size is not 15\n");
+			exit(EXIT_FAILURE);
+		}
+
+		if (mask == 1) {
+			fprintf(stderr, "ERROR: -s/--strict cannot be used if -k/--kmer-size is not 15\n");
+			exit(EXIT_FAILURE);
+		}
+	}
 
 	if (stored_hash_table_location && where_to_save_hash_table) {
-		fprintf(stderr, "ERROR: Cannot specify both --in and --out\n");
+		fprintf(stderr, "ERROR: Cannot specify both -i/--in and -o/--out\n");
 		exit(EXIT_FAILURE);
 	}
 
 	if (quiet && verbose) {
-		fprintf(stderr, "ERROR: Cannot enable both quiet and verbose modes\n");
-		exit(EXIT_FAILURE);
-	}
-	
-	if (max_val < min_val) {
-		fprintf(stderr, "ERROR: Minimum value must not be greater than maximum value\n");
+		fprintf(stderr, "ERROR: Cannot enable both -q/--quiet and -v/--verbose modes\n");
 		exit(EXIT_FAILURE);
 	}
 
+
+	/* ----- End of user input error checking ----- */
+
+
+	num_cells_hash_table = 1UL << (2 * kmer_size); /* = 4^kmer_size */
+
+	if (region_size == -1) {
+		region_size = kmer_size;
+	}
+
+	if (interval_size == -1) {
+		interval_size = 0;
+	}
+
+	num_regions = (kmer_size / region_size);
+	window_size = ((num_regions - 1) * interval_size) + kmer_size;
+	
 	if (mask == -1) {
 		mask = 2; /* Default to normal mask */
 	}
@@ -611,9 +696,11 @@ int main(int argc, char **argv) {
 					fprintf(stderr, "Extracting reads with desired k-mer coverage\n");
 				}
 
-				if ((final_indices = calloc(region_size + interval_size, sizeof(unsigned long))) == NULL) {
-					fprintf(stderr, "ERROR: Ran out of memory\n");
-					exit(EXIT_FAILURE);
+				if (mask == 1) {
+					if ((final_indices = calloc(region_size + interval_size, sizeof(unsigned long))) == NULL) {
+						fprintf(stderr, "ERROR: Ran out of memory\n");
+						exit(EXIT_FAILURE);
+					}
 				}
 
 				rewind(input_file);
@@ -942,6 +1029,9 @@ int main(int argc, char **argv) {
 										ret.segment.seq[j] = 'N';
 									}
 								}
+							}
+							if (mask == 1) {
+								free(final_indices);
 							}
 						}
 					}
