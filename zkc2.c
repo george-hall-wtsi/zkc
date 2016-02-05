@@ -421,7 +421,7 @@ int main(int argc, char **argv) {
 				fprintf(stderr, "ERROR: -u/--cutoff must not be specified in this mode\n");
 				exit(EXIT_FAILURE);
 			}
-			if (is_str_of_digits(argv[++arg_i])) {
+			if (is_str_integer(argv[++arg_i])) {
 				cutoff = atoi(argv[arg_i]);
 				if (cutoff < 0) {
 					fprintf(stderr, "ERROR: -u/--cutoff must not be negative\n");
@@ -438,7 +438,7 @@ int main(int argc, char **argv) {
 				fprintf(stderr, "ERROR: -a/--min-val must not be specified in this mode\n");
 				exit(EXIT_FAILURE);
 			}
-			if (is_str_of_digits(argv[++arg_i])) {
+			if (is_str_integer(argv[++arg_i])) {
 				min_val = atoi(argv[arg_i]);
 				if (min_val < 0) {
 					fprintf(stderr, "ERROR: -a/--min-val must not be negative\n");
@@ -455,7 +455,7 @@ int main(int argc, char **argv) {
 				fprintf(stderr, "ERROR: -b/--max-val must not be specified in this mode\n");
 				exit(EXIT_FAILURE);
 			}
-			if (is_str_of_digits(argv[++arg_i])) {
+			if (is_str_integer(argv[++arg_i])) {
 				max_val = atoi(argv[arg_i]);
 				if (max_val < 0) {
 					fprintf(stderr, "ERROR: -b/--max-val must not be negative\n");
@@ -484,7 +484,7 @@ int main(int argc, char **argv) {
 				fprintf(stderr, "ERROR: -k/--kmer-size specified more than once\n");
 				exit(EXIT_FAILURE);
 			}
-			if (is_str_of_digits(argv[++arg_i])) {
+			if (is_str_integer(argv[++arg_i])) {
 				kmer_size = atoi(argv[arg_i]);
 				if (kmer_size != 13 && kmer_size != 15 && kmer_size != 17) {
 					fprintf(stderr, "ERROR: -k/--kmer-size must be 13, 15, or 17\n");
@@ -532,7 +532,7 @@ int main(int argc, char **argv) {
 		}
 
 		else if (!strcmp(argv[arg_i], "-r") || !strcmp(argv[arg_i], "--region-size")) {
-			if (is_str_of_digits(argv[++arg_i])) {
+			if (is_str_integer(argv[++arg_i])) {
 				region_size = atoi(argv[arg_i]);
 				if (region_size < 0) {
 					fprintf(stderr, "ERROR: -r/--region-size cannot be negative\n");
@@ -545,7 +545,7 @@ int main(int argc, char **argv) {
 		}
 
 		else if (!strcmp(argv[arg_i], "-g") || !strcmp(argv[arg_i], "--interval-size")) {
-			if (is_str_of_digits(argv[++arg_i])) {
+			if (is_str_integer(argv[++arg_i])) {
 				interval_size = atoi(argv[arg_i]);
 				if (interval_size < 0) {
 					fprintf(stderr, "ERROR: -g/--interval-size cannot be negative\n");

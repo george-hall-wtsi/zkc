@@ -8,6 +8,6 @@ typedef struct {
 } line_return;
 
 line_return get_next_line(FILE* f);
-bool is_str_of_digits(char* str);
+bool is_str_integer(char* str);
 
 #endif
