@@ -1026,9 +1026,6 @@ int main(int argc, char **argv) {
 									}
 								}
 							}
-							if (mask == 1) {
-								free(final_indices);
-							}
 						}
 					}
 				}
@@ -1047,6 +1044,11 @@ int main(int argc, char **argv) {
 
 			} while (!ret.bEOF);
 
+			if (phase == 2) {
+				if (mask == 1) {
+					free(final_indices);
+				}
+			}
 		}
 
 		if (phase == 0) {
