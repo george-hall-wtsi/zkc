@@ -34,7 +34,7 @@
 
 void read_hash_table_from_file(uint32_t *hash_table, char *hash_table_location, bool quiet, uint64_t num_cells_hash_table) {
 
-	FILE* input_file;
+	FILE *input_file;
 
 	if (!quiet) {
 		fprintf(stderr, "Reading hash table from file\n");
