@@ -385,6 +385,8 @@ int main(int argc, char **argv) {
 	unsigned int iCount; 
 	int phase; /* 0 => Pass 1; 1 => Pass 2 */
 	int kmer_size = 0; 
+	long read_count = 0;
+	long read_count_cutoff = 500000;
 
 	phase = 999; /* Default phase = 999, meaning that I have forgotten to set it to anything meaningful */
 
@@ -697,6 +699,12 @@ int main(int argc, char **argv) {
 				rewind(input_file);
 			}
 
+			if (!quiet) {
+				fprintf(stderr, "One dot for each 500,000 reads processed\n");
+			}
+
+			read_count = 0;
+
 			do {
 				base_index = 0;
 
@@ -713,6 +721,7 @@ int main(int argc, char **argv) {
 				}
 
 				ret = get_next_seg(input_file, format);
+				read_count++;
 
 				if (ret.segment.length < window_size) {
 
@@ -721,6 +730,13 @@ int main(int argc, char **argv) {
 					if (format == 1) {
 						free(ret.segment.qual);
 					}
+					if (!quiet) {
+						if (read_count == read_count_cutoff) {
+							read_count = 0;
+							fprintf(stderr, ".");
+						}
+					}
+
 					continue;
 				} 
 
@@ -1037,7 +1053,18 @@ int main(int argc, char **argv) {
 					free(ret.segment.qual);
 				}
 
+				if (!quiet) {
+					if (read_count == read_count_cutoff) {
+						read_count = 0;
+						fprintf(stderr, ".");
+					}
+				}
+
 			} while (!ret.bEOF);
+
+			if (!quiet) {
+				fprintf(stderr, "\n");
+			}
 
 			if (phase == 2) {
 				if (mask == 1) {
