@@ -65,6 +65,16 @@ line_return get_next_line(FILE* f) {
 		line[i++] = (char) c;
 	}
 
+	if ((c = getc(f)) == EOF) {
+		to_return.bEOF = true;
+	}
+	else {
+		if ((ungetc(c, f)) == EOF) {
+			fprintf(stderr, "ERROR: ungetc failed in c_tools.c get_next_line function\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+
 	line[i] = '\0';
 
 	to_return.line = line;

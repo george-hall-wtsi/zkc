@@ -183,6 +183,7 @@ seg_return get_next_seg(FILE *f, int format) {
 			bEOF = new_line.bEOF;
 
 			if (bEOF) {
+
 				to_return.bEOF = true;
 				if (strlen(line) > 0) { /* Check we aren't dealing with a blank line at the end of a file */
 					if ((seq_len + strlen(line) > buffsize)) {
@@ -197,8 +198,13 @@ seg_return get_next_seg(FILE *f, int format) {
 						new_segment.seq = tmp;
 					}
 
+					if (seq_len > 0) {
+						strcat(new_segment.seq, line);
+					}
+					else {
+						strcpy(new_segment.seq, line);
+					}
 					seq_len += strlen(line);
-					strcat(new_segment.seq, line);
 				}
 
 				free(line);
