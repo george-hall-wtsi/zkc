@@ -6,20 +6,31 @@ tests_failed=0
 program="zkc-test"
 
 k_sizes=(13 15)
-prefixes=("standard" "with_ns" "blank_line_end")
-extensions=("fasta" "fastq")
+prefixes=("standard" "with_ns" "blank_line_end" "no_quals" "end_at_plus")
 
 
 for file_prefix in "${prefixes[@]}"; do
 
 	if [ $file_prefix == "standard" ]; then
 		echo "Testing zkc hist for basic files"
+		extensions=("fasta" "fastq")
 
 	elif [ $file_prefix == "with_ns" ]; then
 		echo "Testing zkc hist for files containing Ns"
+		extensions=("fasta" "fastq")
 
 	elif [ $file_prefix == "blank_line_end" ]; then
 		echo "Testing zkc hist for files ending in a blank line"
+		extensions=("fasta" "fastq")
+
+	elif [ $file_prefix == "no_quals" ]; then
+		echo "Testing zkc hist for fastq files ending without quality values"
+		extensions=("fastq")
+
+	elif [ $file_prefix == "end_at_plus" ]; then
+		echo "Testing zkc hist for fastq files ending after the plus but before the quality values"
+		extensions=("fastq")
+
 	fi
 
 	cd $file_prefix
@@ -87,6 +98,12 @@ for file_prefix in "${prefixes[@]}"; do
 
 	elif [ $file_prefix == "blank_line_end" ]; then
 		echo "Finished testing zkc hist for files ending in a blank line"
+
+	elif [ $file_prefix == "no_quals" ]; then
+		echo "Finished testing zkc hist for fastq files ending without quality values"
+
+	elif [ $file_prefix == "end_at_plus" ]; then
+		echo "Finished testing zkc hist for fastq files ending after the plus but before the quality values"
 
 	fi
 

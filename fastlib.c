@@ -299,11 +299,21 @@ seg_return get_next_seg(FILE *f, int format) {
 			if (state == 1) {
 				if (line[0] == '+') {
 					/* i.e. this is in fact the header for quality scores */
+					if (bEOF) {
+						fprintf(stderr, "ERROR: File ends after + but before quality scores\n");
+						exit(EXIT_FAILURE);
+					}
 					state = 2;
 					qual_len = 0;
 				}
 
 				else {
+
+					if (bEOF) {
+						fprintf(stderr, "ERROR: Fastq file ends before quality values\n");
+						exit(EXIT_FAILURE);
+					}
+
 					if (seq_len == 0) {
 						if ((seq_len + strlen(line) > buffsize)) {
 							while ((seq_len + strlen(line) > buffsize)) {
