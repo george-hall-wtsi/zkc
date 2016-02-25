@@ -387,6 +387,7 @@ int main(int argc, char **argv) {
 	int kmer_size = 0; 
 	long read_count = 0;
 	long read_count_cutoff = 500000;
+	int index_last_opt = 0;
 
 	phase = 999; /* Default phase = 999, meaning that I have forgotten to set it to anything meaningful */
 
@@ -557,6 +558,8 @@ int main(int argc, char **argv) {
 		else {
 			print_usage(argv[0]);
 		}
+
+		index_last_opt = arg_i;
 	}
 
 
@@ -633,6 +636,11 @@ int main(int argc, char **argv) {
 	num_regions = (kmer_size / region_size);
 	window_size = ((num_regions - 1) * interval_size) + kmer_size;
 	
+	if ((argc - 1) != (index_last_opt + 1)) {
+		fprintf(stderr, "ERROR: Problem with argument list (you have probably forgotten to include the file itself at the end of the list)\n");
+		exit(EXIT_FAILURE);
+	}
+
 	if ((input_file = fopen(argv[argc - 1], "r")) == NULL) {
 		fprintf(stderr, "ERROR: Could not open data file\n");
 		exit(EXIT_FAILURE);
