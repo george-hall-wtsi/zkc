@@ -781,6 +781,12 @@ int main(int argc, char **argv) {
 					fprintf(stderr, "Read name: %s\n", ret.segment.name);
 				}
 
+				if (phase == 2) {
+					if (max_difference > 0) {
+						cutoff = ((ret.segment.length - kmer_size + 1) - max_difference);
+					}
+				}
+
 				hash_seq = hash_sequence(ret.segment.seq, region_size, interval_size, window_size, kmer_size);
 
 				while (hash_seq.found_n == true && base_index <= (ret.segment.length - window_size)) {
@@ -1079,16 +1085,8 @@ int main(int argc, char **argv) {
 				}
 
 				if (phase == 2) {
-					if (cutoff > 0) {
-						if (kmer_hits >= cutoff) {
-							printf(">%s %d\n%s\n", ret.segment.name, kmer_hits, ret.segment.seq);
-						}
-					}
-					else {
-						/* Using --max-difference */
-						if (((ret.segment.length - kmer_size + 1) - kmer_hits) <= max_difference) {
-							printf(">%s %d\n%s\n", ret.segment.name, kmer_hits, ret.segment.seq);
-						}
+					if (kmer_hits >= cutoff) {
+						printf(">%s %d\n%s\n", ret.segment.name, kmer_hits, ret.segment.seq);
 					}
 				}
 
