@@ -234,10 +234,12 @@ void print_usage(char *prog_loc) {
 						"\tonly applicable in extract function:\n"
 							"\t\t-a, --min : minimum number of occurrences of k-mer for it to be masked on read (1)\n"
 							"\t\t-b, --max : maximum number of occurrences of k-mer for it to be masked on read (999)\n"
-							"\t\t-u, --cutoff : minimum number of k-mers mapped to read for read to be printed (50)\n"
+							"\t\t-u, --cutoff : minimum number of k-mers mapped to read for read to be printed (see notes)\n"
+							"\t\t-x, --max-difference : maximum difference between number of k-mer hits and number of possible k-mer hits for the read (see notes)\n"
 							"\t\t-d, --disable-mask : leave bases not occurring in desired k-mer peaks unmasked when extracting reads (faslse)\n\n"
 
 					"notes:\n"
+						"\t* If neither --cutoff nor --max-difference is specified but one is required, cutoff defaults to 50\n"
 						"\t* A maximuim of one of --in and --out may be specified by the user\n"
 						"\t* --quiet and --verbose are mutually exclusive\n"
 						"\t* --min cannot be greater than --max\n"
@@ -359,7 +361,8 @@ int main(int argc, char **argv) {
 	unsigned int kmer_hits = 0;
 	int min_val = 0;
 	int max_val = 0;
-	int cutoff = 50;
+	int cutoff = -1;
+	int max_difference = -1;
 	int interval_size = -1;	/* Number of bases between regions      |||				|||            |||            |||            |||	*/
 	int region_size = -1;	/* Number of bases in each region       ----------------------------------------------------------------	*/
 	int window_size;		/* Number of bases in window             3      10       3       10     3      10      3      10      3		*/
@@ -423,6 +426,23 @@ int main(int argc, char **argv) {
 				cutoff = atoi(argv[arg_i]);
 				if (cutoff < 0) {
 					fprintf(stderr, "ERROR: -u/--cutoff must not be negative\n");
+					exit(EXIT_FAILURE);
+				}
+			}
+			else {
+				print_usage(argv[0]);
+			}
+		}
+
+		else if (!strcmp(argv[arg_i], "-x") || !strcmp(argv[arg_i], "--max-difference")) {
+			if (!extract_reads) {
+				fprintf(stderr, "ERROR: -x/--max-difference must not be specified in this mode\n");
+				exit(EXIT_FAILURE);
+			}
+			if (is_str_integer(argv[++arg_i])) {
+				max_difference = atoi(argv[arg_i]);
+				if (max_difference < 0) {
+					fprintf(stderr, "ERROR: -x/--max-difference must not be negative\n");
 					exit(EXIT_FAILURE);
 				}
 			}
@@ -609,6 +629,11 @@ int main(int argc, char **argv) {
 		}
 	}
 
+	if ((cutoff != -1) && (max_difference != -1)) {
+		fprintf(stderr, "ERROR: Cannot specify both -u/--cutoff and -x/--max-difference\n");
+		exit(EXIT_FAILURE);
+	}
+
 	if (stored_hash_table_location && where_to_save_hash_table) {
 		fprintf(stderr, "ERROR: Cannot specify both -i/--in and -o/--out\n");
 		exit(EXIT_FAILURE);
@@ -631,6 +656,10 @@ int main(int argc, char **argv) {
 
 	if (interval_size == -1) {
 		interval_size = 0;
+	}
+
+	if ((cutoff == -1) && (max_difference == -1)) {
+		cutoff = 50;
 	}
 
 	num_regions = (kmer_size / region_size);
@@ -1050,8 +1079,16 @@ int main(int argc, char **argv) {
 				}
 
 				if (phase == 2) {
-					if (kmer_hits >= cutoff) {
-						printf(">%s %d\n%s\n", ret.segment.name, kmer_hits, ret.segment.seq);
+					if (cutoff > 0) {
+						if (kmer_hits >= cutoff) {
+							printf(">%s %d\n%s\n", ret.segment.name, kmer_hits, ret.segment.seq);
+						}
+					}
+					else {
+						/* Using --max-difference */
+						if (((ret.segment.length - kmer_size + 1) - kmer_hits) <= max_difference) {
+							printf(">%s %d\n%s\n", ret.segment.name, kmer_hits, ret.segment.seq);
+						}
 					}
 				}
 
