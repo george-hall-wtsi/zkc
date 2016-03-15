@@ -121,10 +121,11 @@ seq_hash_return hash_sequence(char *seq, unsigned int region_size, unsigned int 
 	uint64_t seq_hash = 0;
 	int base_hash;
 	seq_hash_return to_return;
+	unsigned int base_index; /* For loop counter */
 
 	to_return.found_n = false;
 
-	for (unsigned int base_index = 0; base_index < window_size; base_index++) {
+	for (base_index = 0; base_index < window_size; base_index++) {
 		base_hash = hash_base(seq[base_index]);
 		if (base_hash != -1) {
 			if ((base_index % (region_size + interval_size)) < region_size) {
@@ -151,8 +152,9 @@ uint64_t hash_rc(uint64_t seq_hash, int kmer_size) {
 
 	uint64_t mask = -4; /* All bits should be set to 1 except least significant two */
 	uint64_t rc_hash = 0;
+	int i; /* For loop counter */
 
-	for (int i = 0; i < (kmer_size - 1); i++) {
+	for (i = 0; i < (kmer_size - 1); i++) {
 		rc_hash += ~((seq_hash & 3) | mask);
 		rc_hash <<= 2;
 		seq_hash >>= 2;
@@ -166,9 +168,10 @@ uint64_t hash_rc(uint64_t seq_hash, int kmer_size) {
 
 void decode_hash(uint64_t hash, unsigned int region_size, unsigned int window_size, unsigned int interval_size, int kmer_size) {
 
+	unsigned int base_index; /* For loop counter */
 	int shift = 2 * (kmer_size - 1);
 
-	for (unsigned int base_index = 0; base_index < window_size; base_index++) {
+	for (base_index = 0; base_index < window_size; base_index++) {
 		if ((base_index % (region_size + interval_size)) < region_size) {
 			if ((hash & (3ULL << shift)) == 0) {
 				putc('A', stderr);
@@ -265,6 +268,7 @@ new_hashes shift_hash(uint64_t current_seq_hash, uint64_t current_rc_hash, int n
 	new_hashes to_return;
 	uint64_t seq_mask; 
 	uint64_t rc_mask;
+	int i; /* For loop counter */
 	int jump = (2 * kmer_size) / num_regions; /* Distance to next region */
 
 	if (kmer_size == 13) {
@@ -319,7 +323,7 @@ new_hashes shift_hash(uint64_t current_seq_hash, uint64_t current_rc_hash, int n
 	to_return.new_hash = current_seq_hash;
 	to_return.new_rc_hash = current_rc_hash;
 
-	for (int i = 0; i < num_regions; i++) {
+	for (i = 0; i < num_regions; i++) {
 		to_return.new_hash += base_hash_array[i] << (jump * (num_regions - i - 1));
 		to_return.new_rc_hash += (((uint64_t) (base_hash_array[num_regions - i - 1] ^ 3)) << (((2 * kmer_size) - 2) - (i * jump)));
 	}
@@ -393,6 +397,9 @@ int main(int argc, char **argv) {
 	long read_count_cutoff = 500000;
 	int index_last_opt = 0;
 	int min_hits_required;
+	int arg_i; /* Argument parser for loop counter */
+	uint64_t i; /* For loop counter */
+	int k, l; /* For loop counters */
 
 	phase = 999; /* Default phase = 999, meaning that I have forgotten to set it to anything meaningful */
 
@@ -417,7 +424,7 @@ int main(int argc, char **argv) {
 		print_usage(argv[0]);
 	}
 
-	for (int arg_i = 2; arg_i < argc - 1; arg_i++) {
+	for (arg_i = 2; arg_i < argc - 1; arg_i++) {
 
 		if (!strcmp(argv[arg_i], "-u") || !strcmp(argv[arg_i], "--cutoff")) {
 			if (!extract_reads) {
@@ -758,7 +765,7 @@ int main(int argc, char **argv) {
 						end_newest_kmer = 0; 
 					}
 					else if (mask == 1) {
-						for (int k = 0; k < region_size + interval_size; k++) {
+						for (k = 0; k < region_size + interval_size; k++) {
 							final_indices[k] = 0;
 						}
 					}
@@ -843,7 +850,7 @@ int main(int argc, char **argv) {
 						if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
 
 							if (mask == 1) {
-								for (int k = base_index - region_size + 1, l = 0; l < (region_size); l++) {
+								for (k = base_index - region_size + 1, l = 0; l < (region_size); l++) {
 									if (verbose) {
 										fprintf(stderr, "1: (k + l) %% (region_size + interval_size) = %" PRIu32 " k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
 									}
@@ -912,7 +919,7 @@ int main(int argc, char **argv) {
 							else if (phase == 2) {
 								if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
 									if (mask == 1) {
-										for (int k = base_index - region_size + 1, l = 0; l < (region_size); l++) {
+										for (k = base_index - region_size + 1, l = 0; l < (region_size); l++) {
 											if (verbose) {
 												fprintf(stderr, "2: (k + l) %% (region_size + interval_size) = %" PRIu32 " k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
 											}
@@ -958,7 +965,7 @@ int main(int argc, char **argv) {
 										fprintf(stderr, "(4) Masking at base_index = %lu\n", base_index);
 									}
 									if (mask == 1) {
-										for (uint64_t i = base_index - window_size + 1; i < base_index; i++) {
+										for (i = base_index - window_size + 1; i < base_index; i++) {
 											final_index = final_indices[i % (region_size + interval_size)];
 											if (verbose) {
 												fprintf(stderr, "4: Final index = %lu\n", final_index);
@@ -969,7 +976,7 @@ int main(int argc, char **argv) {
 										}
 									}
 									else if (mask == 2) {
-										for (uint64_t i = base_index - window_size + 1; i < base_index; i++) {
+										for (i = base_index - window_size + 1; i < base_index; i++) {
 											if ((end_newest_kmer == 0) || (i > end_newest_kmer)) {
 												ret.segment.seq[i] = 'N';
 											}
@@ -1036,7 +1043,7 @@ int main(int argc, char **argv) {
 								else if (phase == 2) {
 									if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
 										if (mask == 1) {
-											for (int k = base_index - region_size + 1, l = 0; l < (region_size); l++) {
+											for (k = base_index - region_size + 1, l = 0; l < (region_size); l++) {
 												if (verbose) {
 													fprintf(stderr, "3: (k + l) %% (region_size + interval_size) = %" PRIu32 " k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
 												}
@@ -1081,7 +1088,7 @@ int main(int argc, char **argv) {
 							if (verbose) {
 								fprintf(stderr, "(7) Masking at base_index = %lu\n", base_index);
 							}
-							for (uint64_t i = base_index - window_size; i < base_index; i++) {
+							for (i = base_index - window_size; i < base_index; i++) {
 								if (mask == 1) {
 									final_index = final_indices[i % (region_size + interval_size)];
 									if (verbose) {
@@ -1160,11 +1167,11 @@ int main(int argc, char **argv) {
 				fprintf(stderr, "Computing histogram\n");
 			}
 
-			for (uint64_t i = 0; i < histogram_size; i++) {
+			for (i = 0; i < histogram_size; i++) {
 				hist[i] = 0;
 			}
 
-			for (uint64_t i = 0; i < num_cells_hash_table; i++) {
+			for (i = 0; i < num_cells_hash_table; i++) {
 				if (hash_table[i] > 0) {
 					if (hash_table[i] < histogram_size) {
 						hist[hash_table[i] - 1]++;
@@ -1175,7 +1182,7 @@ int main(int argc, char **argv) {
 				}
 			}
 
-			for (uint64_t i = 0; i < histogram_size; i++) {
+			for (i = 0; i < histogram_size; i++) {
 				if (hist[i] > 0) {
 					printf("%lu %ld\n", i + 1, hist[i]);
 				}
