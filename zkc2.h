@@ -11,9 +11,9 @@ typedef struct {
 
 void print_usage(char *prog_loc);
 int hash_base(char base);
-seq_hash_return hash_sequence(char *seq, unsigned int region_size, unsigned int interval_size, unsigned int window_size, int kmer_size);
+seq_hash_return hash_sequence(char *seq, unsigned int region_size, unsigned int interval_size, unsigned int window_size);
 new_hashes hash_new_window(uint64_t current_seq_hash, int kmer_size);
-new_hashes shift_hash(uint64_t current_seq_hash, uint64_t current_rc_hash, unsigned int num_regions, int *base_hash_array, int kmer_size);
+new_hashes shift_hash(uint64_t current_seq_hash, uint64_t current_rc_hash, int num_regions, int *base_hash_array, int kmer_size);
 uint64_t hash_rc(uint64_t seq_hash, int kmer_size);
 void decode_hash(uint64_t hash, unsigned int region_size, unsigned int window_size, unsigned int interval_size, int kmer_size);
 void read_hash_table_from_file(uint32_t *hash_table, char *hash_table_location, bool quiet, uint64_t num_cells_hash_table);

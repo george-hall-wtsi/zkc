@@ -116,7 +116,7 @@ int hash_base (char base) {
 }
 
 
-seq_hash_return hash_sequence(char *seq, unsigned int region_size, unsigned int interval_size, unsigned int window_size, int kmer_size) {
+seq_hash_return hash_sequence(char *seq, unsigned int region_size, unsigned int interval_size, unsigned int window_size) {
 
 	uint64_t seq_hash = 0;
 	int base_hash;
@@ -260,7 +260,7 @@ void print_usage(char *prog_loc) {
 }
 
 
-new_hashes shift_hash(uint64_t current_seq_hash, uint64_t current_rc_hash, unsigned int num_regions, int *base_hash_array, int kmer_size) {
+new_hashes shift_hash(uint64_t current_seq_hash, uint64_t current_rc_hash, int num_regions, int *base_hash_array, int kmer_size) {
 
 	new_hashes to_return;
 	uint64_t seq_mask; 
@@ -358,15 +358,15 @@ int main(int argc, char **argv) {
 	int hash;
 	seq_hash_return hash_seq;
 	new_hashes new_hashes_triple;
-	unsigned int kmer_hits = 0;
-	int min_val = 0;
-	int max_val = 0;
+	int kmer_hits = 0;
+	unsigned int min_val = 0;
+	unsigned int max_val = 0;
 	int cutoff;
 	int min_kmer_hits = -1;
 	int max_kmers_missed = -1;
 	int interval_size = -1;	/* Number of bases between regions      |||				|||            |||            |||            |||	*/
 	int region_size = -1;	/* Number of bases in each region       ----------------------------------------------------------------	*/
-	int window_size;		/* Number of bases in window             3      10       3       10     3      10      3      10      3		*/
+	unsigned int window_size;		/* Number of bases in window             3      10       3       10     3      10      3      10      3		*/
 	int num_regions;		/*										         ^-- interval           ^-- region							*/
 							/*										<--------------------------- window --------------------------->	*/
 	char *where_to_save_hash_table = NULL;
@@ -374,7 +374,7 @@ int main(int argc, char **argv) {
 	uint64_t num_cells_hash_table;
 	uint64_t base_index; 
 	unsigned long new_base_loc;
-	int histogram_size = 10001;
+	unsigned int histogram_size = 10001;
 	long hist[histogram_size];
 	bool extract_reads = false;
 	bool print_hist = false;
@@ -386,7 +386,7 @@ int main(int argc, char **argv) {
 	unsigned long *final_indices; /* Array holding the indices of the final base currently masked for each set of bases modulo (region_size + interval_size) */
 	unsigned long final_index;
 	int new_base_hash_array[5];
-	unsigned int iCount; 
+	int iCount; 
 	int phase; /* 0 => Pass 1; 1 => Pass 2 */
 	int kmer_size = 0; 
 	long read_count = 0;
@@ -459,10 +459,12 @@ int main(int argc, char **argv) {
 				exit(EXIT_FAILURE);
 			}
 			if (is_str_integer(argv[++arg_i])) {
-				min_val = atoi(argv[arg_i]);
-				if (min_val < 0) {
+				if (atoi(argv[arg_i]) < 0) {
 					fprintf(stderr, "ERROR: -a/--min-val must not be negative\n");
 					exit(EXIT_FAILURE);
+				}
+				else {
+					min_val = atoi(argv[arg_i]);
 				}
 			}
 			else {
@@ -476,10 +478,12 @@ int main(int argc, char **argv) {
 				exit(EXIT_FAILURE);
 			}
 			if (is_str_integer(argv[++arg_i])) {
-				max_val = atoi(argv[arg_i]);
-				if (max_val < 0) {
+				if (atoi(argv[arg_i]) < 0) {
 					fprintf(stderr, "ERROR: -b/--max-val must not be negative\n");
 					exit(EXIT_FAILURE);
+				}
+				else {
+					max_val = atoi(argv[arg_i]);
 				}
 			}
 			else {
@@ -800,11 +804,11 @@ int main(int argc, char **argv) {
 					}
 				}
 
-				hash_seq = hash_sequence(ret.segment.seq, region_size, interval_size, window_size, kmer_size);
+				hash_seq = hash_sequence(ret.segment.seq, region_size, interval_size, window_size);
 
 				while (hash_seq.found_n == true && base_index <= (ret.segment.length - window_size)) {
 					base_index += 1;
-					hash_seq = hash_sequence(ret.segment.seq + base_index, region_size, interval_size, window_size, kmer_size);
+					hash_seq = hash_sequence(ret.segment.seq + base_index, region_size, interval_size, window_size);
 					if (phase == 2) {
 						if (mask) {
 							if (verbose) {
@@ -975,7 +979,7 @@ int main(int argc, char **argv) {
 							}
 
 							base_index += 1;
-							hash_seq = hash_sequence(ret.segment.seq + base_index, region_size, interval_size, window_size, kmer_size);
+							hash_seq = hash_sequence(ret.segment.seq + base_index, region_size, interval_size, window_size);
 
 							/* Keep hashing the sequence starting at the next base and moving along the window until we don't find any more 'N's */
 							while (hash_seq.found_n == true && base_index < (ret.segment.length - window_size)) {
@@ -1002,7 +1006,7 @@ int main(int argc, char **argv) {
 								}
 
 								base_index += 1;
-								hash_seq = hash_sequence(ret.segment.seq + base_index, region_size, interval_size, window_size, kmer_size);
+								hash_seq = hash_sequence(ret.segment.seq + base_index, region_size, interval_size, window_size);
 							}
 
 							if (hash_seq.found_n == true) {
