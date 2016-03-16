@@ -309,7 +309,7 @@ new_hashes shift_hash(uint64_t current_seq_hash, uint64_t current_rc_hash, int n
 	}
 
 	else {
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 	current_seq_hash <<= 2;
