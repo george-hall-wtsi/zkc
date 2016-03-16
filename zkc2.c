@@ -365,7 +365,7 @@ int main(int argc, char **argv) {
 	int kmer_hits = 0;
 	unsigned int min_val = 0;
 	unsigned int max_val = 0;
-	int cutoff;
+	int cutoff = -1 ;
 	int min_kmer_hits = -1;
 	int max_kmers_missed = -1;
 	int interval_size = -1;	/* Number of bases between regions      |||				|||            |||            |||            |||	*/
