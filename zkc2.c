@@ -166,9 +166,9 @@ uint64_t hash_rc(uint64_t seq_hash, int kmer_size) {
 }
 
 
-void decode_hash(uint64_t hash, unsigned int region_size, unsigned int window_size, unsigned int interval_size, int kmer_size) {
+void decode_hash(uint64_t hash, int region_size, int window_size, int interval_size, int kmer_size) {
 
-	unsigned int base_index; /* For loop counter */
+	int base_index; /* For loop counter */
 	int shift = 2 * (kmer_size - 1);
 
 	for (base_index = 0; base_index < window_size; base_index++) {
