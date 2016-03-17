@@ -395,12 +395,13 @@ int main(int argc, char **argv) {
 	int kmer_size = 0; 
 	long read_count = 0;
 	long read_count_cutoff = 500000;
-	int index_last_opt = 0;
 	int min_hits_required;
 	int arg_i; /* Argument parser for loop counter */
 	uint64_t i; /* For loop counter */
 	int k, l; /* For loop counters */
 	bool argument_error = false; /* Set to true if we need to quit after all error checking has taken place */
+	int index_first_file = argc - 1; /* argv index of the first file passed to the program */
+	int file_index;
 
 	phase = 999; /* Default phase = 999, meaning that I have forgotten to set it to anything meaningful */
 
@@ -597,11 +598,9 @@ int main(int argc, char **argv) {
 		}
 
 		else {
-			fprintf(stderr, "ERROR: Unrecognised argument %s\n", argv[arg_i]);
-			argument_error = true;
+			index_first_file = arg_i;
+			break;
 		}
-
-		index_last_opt = arg_i;
 	}
 
 
@@ -692,16 +691,6 @@ int main(int argc, char **argv) {
 	num_regions = (kmer_size / region_size);
 	window_size = ((num_regions - 1) * interval_size) + kmer_size;
 	
-	if ((argc - 1) != (index_last_opt + 1)) {
-		fprintf(stderr, "ERROR: Problem with argument list (you have probably forgotten to include the file itself at the end of the list)\n");
-		exit(EXIT_FAILURE);
-	}
-
-	if ((input_file = fopen(argv[argc - 1], "r")) == NULL) {
-		fprintf(stderr, "ERROR: Could not open data file\n");
-		exit(EXIT_FAILURE);
-	}
-
 	if (verbose) {
 		fprintf(stderr, "Region size = %u Number regions = %d Interval size = %u Window size = %u K-mer size = %d\n", region_size, num_regions, interval_size, window_size, kmer_size);
 	}
@@ -710,11 +699,13 @@ int main(int argc, char **argv) {
 	 * providing that the count does not exceed 2^32 - the minimum size of a long). 
 	 */
 
-	if ((hash_table = calloc(num_cells_hash_table, sizeof(uint32_t))) == NULL) {
-		fprintf(stderr, "ERROR: Out of memory\n"); exit(EXIT_FAILURE);
-	}
+	/* Magic malloc to make the following calloc muuuuch faster */
+	free(malloc(0));
 
-	format = which_format(input_file);
+	if ((hash_table = calloc(num_cells_hash_table, sizeof(uint32_t))) == NULL) {
+		fprintf(stderr, "ERROR: Out of memory\n"); 
+		exit(EXIT_FAILURE);
+	}
 
 	if (stored_hash_table_location == NULL) {
 		if (!quiet) {
@@ -746,307 +737,193 @@ int main(int argc, char **argv) {
 
 	while (true) {
 
-		if (phase == 0 || phase == 2) {
+		for (file_index = index_first_file; file_index <= argc - 1; file_index++) {
 
-			if (phase == 2) {
-				if (!quiet) {
-					fprintf(stderr, "Extracting reads with desired k-mer coverage\n");
-				}
-
-				if (mask == 1) {
-					if ((final_indices = calloc(region_size + interval_size, sizeof(unsigned long))) == NULL) {
-						fprintf(stderr, "ERROR: Ran out of memory\n");
-						exit(EXIT_FAILURE);
-					}
-				}
-
-				rewind(input_file);
+			if ((input_file = fopen(argv[file_index], "r")) == NULL) {
+				fprintf(stderr, "ERROR: Could not open data file %s\n", argv[file_index]);
+				exit(EXIT_FAILURE);
 			}
 
-			if (!quiet) {
-				fprintf(stderr, "One dot for each 500,000 reads processed\n");
-			}
+			format = which_format(input_file);
+			rewind(input_file);
 
-			read_count = 0;
-
-			do {
-				base_index = 0;
+			if (phase == 0 || phase == 2) {
 
 				if (phase == 2) {
-					kmer_hits = 0;
-					if (mask == 2) {
-						end_newest_kmer = 0; 
-					}
-					else if (mask == 1) {
-						for (k = 0; k < region_size + interval_size; k++) {
-							final_indices[k] = 0;
-						}
-					}
-				}
-
-				ret = get_next_seg(input_file, format);
-
-				read_count++;
-
-				if (ret.segment.length < window_size) {
-
-					free(ret.segment.name);
-					free(ret.segment.seq);
-					if (format == 1) {
-						free(ret.segment.qual);
-					}
 					if (!quiet) {
-						if (read_count == read_count_cutoff) {
-							read_count = 0;
-							fprintf(stderr, ".");
+						fprintf(stderr, "Extracting reads with desired k-mer coverage\n");
+					}
+
+					if (mask == 1) {
+						if ((final_indices = calloc(region_size + interval_size, sizeof(unsigned long))) == NULL) {
+							fprintf(stderr, "ERROR: Ran out of memory\n");
+							exit(EXIT_FAILURE);
 						}
 					}
 
-					continue;
-				} 
-
-				if (verbose) {
-					fprintf(stderr, "Read name: %s\n", ret.segment.name);
+					rewind(input_file);
 				}
 
-				if (phase == 2) {
-					if (max_kmers_missed != -1) {
-						/* min_hits_required = minimum number of k-mer hits required to mean that we miss fewer than the maxiumum number of missed k-mers */
-						min_hits_required = ((ret.segment.length - kmer_size + 1) - max_kmers_missed);
-						min_hits_required = (min_hits_required > 0) ? min_hits_required : 0;
-						if (min_kmer_hits != -1) {
-							/* Set cutoff to be the smaller of the two requirements (i.e. make it as easy as possible for a read to be extracted) */
-							cutoff = (min_kmer_hits <= min_hits_required) ? min_kmer_hits : min_hits_required;
-						}
-						else {
-							cutoff = min_hits_required;
-						}
-					}
+				if (!quiet) {
+					fprintf(stderr, "One dot for each 500,000 reads processed\n");
 				}
 
-				hash_seq = hash_sequence(ret.segment.seq, region_size, interval_size, window_size);
+				read_count = 0;
 
-				while (hash_seq.found_n == true && base_index <= (ret.segment.length - window_size)) {
-					base_index += 1;
-					hash_seq = hash_sequence(ret.segment.seq + base_index, region_size, interval_size, window_size);
+				do {
+					base_index = 0;
+
 					if (phase == 2) {
-						if (mask) {
-							if (verbose) {
-								fprintf(stderr, "(1) Masking at base_index = %lu\n", base_index);
+						kmer_hits = 0;
+						if (mask == 2) {
+							end_newest_kmer = 0; 
+						}
+						else if (mask == 1) {
+							for (k = 0; k < region_size + interval_size; k++) {
+								final_indices[k] = 0;
 							}
-							ret.segment.seq[base_index] = 'N';
 						}
 					}
-				}
 
-				if (hash_seq.found_n == false) {
+					ret = get_next_seg(input_file, format);
 
-					new_hashes_triple = hash_new_window(hash_seq.hash, kmer_size);
-					hash_val = new_hashes_triple.new_hash;
-					rc_hash = new_hashes_triple.new_rc_hash;
-					canonical_hash = new_hashes_triple.canonical_hash;
+					read_count++;
 
-					hash_to_use = use_canonical ? canonical_hash : hash_val;
+					if (ret.segment.length < window_size) {
 
-					base_index += window_size - 1; 
+						free(ret.segment.name);
+						free(ret.segment.seq);
+						if (format == 1) {
+							free(ret.segment.qual);
+						}
+						if (!quiet) {
+							if (read_count == read_count_cutoff) {
+								read_count = 0;
+								fprintf(stderr, ".");
+							}
+						}
+
+						continue;
+					} 
 
 					if (verbose) {
-						decode_all_hashes(hash_val, rc_hash, canonical_hash, region_size, window_size, interval_size, kmer_size, hash_to_use, hash_table);
-						fprintf(stderr, " [1]\n");
+						fprintf(stderr, "Read name: %s\n", ret.segment.name);
 					}
 
-					if (phase == 0) {
-						hash_table[hash_to_use] += 1;
-					}
-
-					else if (phase == 2) {
-						if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
-
-							if (mask == 1) {
-								for (k = base_index - region_size + 1, l = 0; l < (region_size); l++) {
-									if (verbose) {
-										fprintf(stderr, "1: (k + l) %% (region_size + interval_size) = %" PRIu32 " k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
-									}
-									final_indices[(k + l) % (region_size + interval_size)] = k + l;	
-								}
+					if (phase == 2) {
+						if (max_kmers_missed != -1) {
+							/* min_hits_required = minimum number of k-mer hits required to mean that we miss fewer than the maxiumum number of missed k-mers */
+							min_hits_required = ((ret.segment.length - kmer_size + 1) - max_kmers_missed);
+							min_hits_required = (min_hits_required > 0) ? min_hits_required : 0;
+							if (min_kmer_hits != -1) {
+								/* Set cutoff to be the smaller of the two requirements (i.e. make it as easy as possible for a read to be extracted) */
+								cutoff = (min_kmer_hits <= min_hits_required) ? min_kmer_hits : min_hits_required;
 							}
-
-							else if (mask == 2) {
-								end_newest_kmer = base_index;
+							else {
+								cutoff = min_hits_required;
 							}
-
-							kmer_hits++;
 						}
+					}
 
-						if (mask) {
-							if (verbose) {
-								fprintf(stderr, "(2) - Masking at base_index = %lu\n", base_index);
-							}
-							if (mask == 1) {
-								final_index = final_indices[base_index - window_size + 1 % (region_size + interval_size)];
+					hash_seq = hash_sequence(ret.segment.seq, region_size, interval_size, window_size);
+
+					while (hash_seq.found_n == true && base_index <= (ret.segment.length - window_size)) {
+						base_index += 1;
+						hash_seq = hash_sequence(ret.segment.seq + base_index, region_size, interval_size, window_size);
+						if (phase == 2) {
+							if (mask) {
 								if (verbose) {
-									fprintf(stderr, "2: Final index = %lu\n", final_index);
+									fprintf(stderr, "(1) Masking at base_index = %lu\n", base_index);
 								}
-								if ((final_index == 0) || ((base_index - window_size + 1) > final_index)) {
-									ret.segment.seq[base_index - window_size + 1] = 'N';
-								}
-							}
-							else if (mask == 2) {
-								if ((end_newest_kmer == 0) || ((base_index - window_size + 1) > end_newest_kmer)) {
-									ret.segment.seq[base_index - window_size + 1] = 'N';
-								}
+								ret.segment.seq[base_index] = 'N';
 							}
 						}
 					}
 
-					for (base_index += 1; base_index < ret.segment.length; base_index++) {
+					if (hash_seq.found_n == false) {
 
-						for (iCount = 0; iCount < num_regions - 1; iCount++) {
-							/* Can guarantee that only the final new character hashed might be an 'N', as otherwise we would have already found it */
+						new_hashes_triple = hash_new_window(hash_seq.hash, kmer_size);
+						hash_val = new_hashes_triple.new_hash;
+						rc_hash = new_hashes_triple.new_rc_hash;
+						canonical_hash = new_hashes_triple.canonical_hash;
+
+						hash_to_use = use_canonical ? canonical_hash : hash_val;
+
+						base_index += window_size - 1; 
+
+						if (verbose) {
+							decode_all_hashes(hash_val, rc_hash, canonical_hash, region_size, window_size, interval_size, kmer_size, hash_to_use, hash_table);
+							fprintf(stderr, " [1]\n");
+						}
+
+						if (phase == 0) {
+							hash_table[hash_to_use] += 1;
+						}
+
+						else if (phase == 2) {
+							if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
+
+								if (mask == 1) {
+									for (k = base_index - region_size + 1, l = 0; l < (region_size); l++) {
+										if (verbose) {
+											fprintf(stderr, "1: (k + l) %% (region_size + interval_size) = %" PRIu32 " k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
+										}
+										final_indices[(k + l) % (region_size + interval_size)] = k + l;	
+									}
+								}
+
+								else if (mask == 2) {
+									end_newest_kmer = base_index;
+								}
+
+								kmer_hits++;
+							}
+
+							if (mask) {
+								if (verbose) {
+									fprintf(stderr, "(2) - Masking at base_index = %lu\n", base_index);
+								}
+								if (mask == 1) {
+									final_index = final_indices[base_index - window_size + 1 % (region_size + interval_size)];
+									if (verbose) {
+										fprintf(stderr, "2: Final index = %lu\n", final_index);
+									}
+									if ((final_index == 0) || ((base_index - window_size + 1) > final_index)) {
+										ret.segment.seq[base_index - window_size + 1] = 'N';
+									}
+								}
+								else if (mask == 2) {
+									if ((end_newest_kmer == 0) || ((base_index - window_size + 1) > end_newest_kmer)) {
+										ret.segment.seq[base_index - window_size + 1] = 'N';
+									}
+								}
+							}
+						}
+
+						for (base_index += 1; base_index < ret.segment.length; base_index++) {
+
+							for (iCount = 0; iCount < num_regions - 1; iCount++) {
+								/* Can guarantee that only the final new character hashed might be an 'N', as otherwise we would have already found it */
+								new_base_loc = base_index - window_size + region_size + (iCount * (region_size + interval_size));
+								hash = hash_base(ret.segment.seq[new_base_loc]);
+								new_base_hash_array[iCount] = hash;
+							}
+
 							new_base_loc = base_index - window_size + region_size + (iCount * (region_size + interval_size));
 							hash = hash_base(ret.segment.seq[new_base_loc]);
-							new_base_hash_array[iCount] = hash;
-						}
 
-						new_base_loc = base_index - window_size + region_size + (iCount * (region_size + interval_size));
-						hash = hash_base(ret.segment.seq[new_base_loc]);
-
-						if (hash != -1) {
-							new_base_hash_array[iCount] = hash;
-							new_hashes_triple = shift_hash(hash_val, rc_hash, num_regions, new_base_hash_array, kmer_size);
-							hash_val = new_hashes_triple.new_hash;
-							rc_hash = new_hashes_triple.new_rc_hash;
-							canonical_hash = new_hashes_triple.canonical_hash;
-
-							hash_to_use = use_canonical ? canonical_hash : hash_val;
-
-							if (verbose) {
-								decode_all_hashes(hash_val, rc_hash, canonical_hash, region_size, window_size, interval_size, kmer_size, hash_to_use, hash_table);
-								fprintf(stderr, " [2]\n");
-							}
-
-							if (phase == 0) {
-								hash_table[hash_to_use] += 1;
-							}
-
-							else if (phase == 2) {
-								if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
-									if (mask == 1) {
-										for (k = base_index - region_size + 1, l = 0; l < (region_size); l++) {
-											if (verbose) {
-												fprintf(stderr, "2: (k + l) %% (region_size + interval_size) = %" PRIu32 " k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
-											}
-											final_indices[(k + l) % (region_size + interval_size)] = k + l;	
-										}
-									}
-
-									else if (mask == 2) {
-										end_newest_kmer = base_index;
-									}
-
-									kmer_hits++;
-								}
-
-								if (mask) {
-									if (verbose) {
-										fprintf(stderr, "(3) Masking at base_index = %lu\n", base_index);
-									}
-									if (mask == 1) {
-										final_index = final_indices[(base_index - window_size + 1) % (region_size + interval_size)];
-										if (verbose) {
-											fprintf(stderr, "3: base_index - window_size + 1 %% (region_size + interval_size) = %lu Final index = %lu\n", (base_index - window_size + 1) % (region_size + interval_size), final_index);
-										}
-										if ((final_index == 0) || ((base_index - window_size + 1) > final_index)) {
-											ret.segment.seq[base_index - window_size + 1] = 'N';
-										}
-									}
-									else if (mask == 2) {
-										if ((end_newest_kmer == 0) || ((base_index - window_size + 1) > end_newest_kmer)) {
-											ret.segment.seq[base_index - window_size + 1] = 'N';
-										}
-									}
-								}
-							}
-						}
-
-						else {
-
-							if (phase == 2) {
-								if (mask) {
-									/* Before moving onto the next k-mer word, mask, if necessary, the remainder of the k-mer word which is going to be skipped */
-									if (verbose) {
-										fprintf(stderr, "(4) Masking at base_index = %lu\n", base_index);
-									}
-									if (mask == 1) {
-										for (i = base_index - window_size + 1; i < base_index; i++) {
-											final_index = final_indices[i % (region_size + interval_size)];
-											if (verbose) {
-												fprintf(stderr, "4: Final index = %lu\n", final_index);
-											}
-											if ((final_index == 0) || (i > final_index)) {
-												ret.segment.seq[i] = 'N';
-											}
-										}
-									}
-									else if (mask == 2) {
-										for (i = base_index - window_size + 1; i < base_index; i++) {
-											if ((end_newest_kmer == 0) || (i > end_newest_kmer)) {
-												ret.segment.seq[i] = 'N';
-											}
-										}
-									}
-								}
-							}
-
-							base_index += 1;
-							hash_seq = hash_sequence(ret.segment.seq + base_index, region_size, interval_size, window_size);
-
-							/* Keep hashing the sequence starting at the next base and moving along the window until we don't find any more 'N's */
-							while (hash_seq.found_n == true && base_index < (ret.segment.length - window_size)) {
-								if (phase == 2) {
-									if (mask) {
-										if (verbose) {
-											fprintf(stderr, "(5) Masking at base_index = %lu\n", base_index);
-										}
-										if (mask == 1) {
-											final_index = final_indices[base_index - window_size + 1 % (region_size + interval_size)];
-											if (verbose) {
-												fprintf(stderr, "5: Final index = %lu\n", final_index);
-											}
-											if ((final_index == 0) || (base_index > final_index)) {
-												ret.segment.seq[base_index] = 'N';
-											}
-										}
-										else if (mask == 2) {
-											if ((end_newest_kmer == 0) || (base_index > end_newest_kmer)) {
-												ret.segment.seq[base_index] = 'N';
-											}
-										}
-									}
-								}
-
-								base_index += 1;
-								hash_seq = hash_sequence(ret.segment.seq + base_index, region_size, interval_size, window_size);
-							}
-
-							if (hash_seq.found_n == true) {
-								break;
-							}
-
-							else {
-								new_hashes_triple = hash_new_window(hash_seq.hash, kmer_size);
+							if (hash != -1) {
+								new_base_hash_array[iCount] = hash;
+								new_hashes_triple = shift_hash(hash_val, rc_hash, num_regions, new_base_hash_array, kmer_size);
 								hash_val = new_hashes_triple.new_hash;
 								rc_hash = new_hashes_triple.new_rc_hash;
 								canonical_hash = new_hashes_triple.canonical_hash;
 
 								hash_to_use = use_canonical ? canonical_hash : hash_val;
 
-								/* Move to end of k-mer word */
-								base_index += window_size - 1;
-
 								if (verbose) {
 									decode_all_hashes(hash_val, rc_hash, canonical_hash, region_size, window_size, interval_size, kmer_size, hash_to_use, hash_table);
-									fprintf(stderr, " [3]\n");
+									fprintf(stderr, " [2]\n");
 								}
 
 								if (phase == 0) {
@@ -1058,7 +935,7 @@ int main(int argc, char **argv) {
 										if (mask == 1) {
 											for (k = base_index - region_size + 1, l = 0; l < (region_size); l++) {
 												if (verbose) {
-													fprintf(stderr, "3: (k + l) %% (region_size + interval_size) = %" PRIu32 " k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
+													fprintf(stderr, "2: (k + l) %% (region_size + interval_size) = %" PRIu32 " k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
 												}
 												final_indices[(k + l) % (region_size + interval_size)] = k + l;	
 											}
@@ -1073,12 +950,12 @@ int main(int argc, char **argv) {
 
 									if (mask) {
 										if (verbose) {
-											fprintf(stderr, "(6) Masking at base_index = %lu\n", base_index);
+											fprintf(stderr, "(3) Masking at base_index = %lu\n", base_index);
 										}
 										if (mask == 1) {
-											final_index = final_indices[base_index - window_size + 1 % (region_size + interval_size)];
+											final_index = final_indices[(base_index - window_size + 1) % (region_size + interval_size)];
 											if (verbose) {
-												fprintf(stderr, "6: Final index = %lu\n", final_index);
+												fprintf(stderr, "3: base_index - window_size + 1 %% (region_size + interval_size) = %lu Final index = %lu\n", (base_index - window_size + 1) % (region_size + interval_size), final_index);
 											}
 											if ((final_index == 0) || ((base_index - window_size + 1) > final_index)) {
 												ret.segment.seq[base_index - window_size + 1] = 'N';
@@ -1092,69 +969,195 @@ int main(int argc, char **argv) {
 									}
 								}
 							}
+
+							else {
+
+								if (phase == 2) {
+									if (mask) {
+										/* Before moving onto the next k-mer word, mask, if necessary, the remainder of the k-mer word which is going to be skipped */
+										if (verbose) {
+											fprintf(stderr, "(4) Masking at base_index = %lu\n", base_index);
+										}
+										if (mask == 1) {
+											for (i = base_index - window_size + 1; i < base_index; i++) {
+												final_index = final_indices[i % (region_size + interval_size)];
+												if (verbose) {
+													fprintf(stderr, "4: Final index = %lu\n", final_index);
+												}
+												if ((final_index == 0) || (i > final_index)) {
+													ret.segment.seq[i] = 'N';
+												}
+											}
+										}
+										else if (mask == 2) {
+											for (i = base_index - window_size + 1; i < base_index; i++) {
+												if ((end_newest_kmer == 0) || (i > end_newest_kmer)) {
+													ret.segment.seq[i] = 'N';
+												}
+											}
+										}
+									}
+								}
+
+								base_index += 1;
+								hash_seq = hash_sequence(ret.segment.seq + base_index, region_size, interval_size, window_size);
+
+								/* Keep hashing the sequence starting at the next base and moving along the window until we don't find any more 'N's */
+								while (hash_seq.found_n == true && base_index < (ret.segment.length - window_size)) {
+									if (phase == 2) {
+										if (mask) {
+											if (verbose) {
+												fprintf(stderr, "(5) Masking at base_index = %lu\n", base_index);
+											}
+											if (mask == 1) {
+												final_index = final_indices[base_index - window_size + 1 % (region_size + interval_size)];
+												if (verbose) {
+													fprintf(stderr, "5: Final index = %lu\n", final_index);
+												}
+												if ((final_index == 0) || (base_index > final_index)) {
+													ret.segment.seq[base_index] = 'N';
+												}
+											}
+											else if (mask == 2) {
+												if ((end_newest_kmer == 0) || (base_index > end_newest_kmer)) {
+													ret.segment.seq[base_index] = 'N';
+												}
+											}
+										}
+									}
+
+									base_index += 1;
+									hash_seq = hash_sequence(ret.segment.seq + base_index, region_size, interval_size, window_size);
+								}
+
+								if (hash_seq.found_n == true) {
+									break;
+								}
+
+								else {
+									new_hashes_triple = hash_new_window(hash_seq.hash, kmer_size);
+									hash_val = new_hashes_triple.new_hash;
+									rc_hash = new_hashes_triple.new_rc_hash;
+									canonical_hash = new_hashes_triple.canonical_hash;
+
+									hash_to_use = use_canonical ? canonical_hash : hash_val;
+
+									/* Move to end of k-mer word */
+									base_index += window_size - 1;
+
+									if (verbose) {
+										decode_all_hashes(hash_val, rc_hash, canonical_hash, region_size, window_size, interval_size, kmer_size, hash_to_use, hash_table);
+										fprintf(stderr, " [3]\n");
+									}
+
+									if (phase == 0) {
+										hash_table[hash_to_use] += 1;
+									}
+
+									else if (phase == 2) {
+										if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
+											if (mask == 1) {
+												for (k = base_index - region_size + 1, l = 0; l < (region_size); l++) {
+													if (verbose) {
+														fprintf(stderr, "3: (k + l) %% (region_size + interval_size) = %" PRIu32 " k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
+													}
+													final_indices[(k + l) % (region_size + interval_size)] = k + l;	
+												}
+											}
+
+											else if (mask == 2) {
+												end_newest_kmer = base_index;
+											}
+
+											kmer_hits++;
+										}
+
+										if (mask) {
+											if (verbose) {
+												fprintf(stderr, "(6) Masking at base_index = %lu\n", base_index);
+											}
+											if (mask == 1) {
+												final_index = final_indices[base_index - window_size + 1 % (region_size + interval_size)];
+												if (verbose) {
+													fprintf(stderr, "6: Final index = %lu\n", final_index);
+												}
+												if ((final_index == 0) || ((base_index - window_size + 1) > final_index)) {
+													ret.segment.seq[base_index - window_size + 1] = 'N';
+												}
+											}
+											else if (mask == 2) {
+												if ((end_newest_kmer == 0) || ((base_index - window_size + 1) > end_newest_kmer)) {
+													ret.segment.seq[base_index - window_size + 1] = 'N';
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+
+						if (phase == 2) {
+							if (mask) {
+								/* Mask the bases in the final k-mer word */
+								if (verbose) {
+									fprintf(stderr, "(7) Masking at base_index = %lu\n", base_index);
+								}
+								for (i = base_index - window_size; i < base_index; i++) {
+									if (mask == 1) {
+										final_index = final_indices[i % (region_size + interval_size)];
+										if (verbose) {
+											fprintf(stderr, "7: Final index = %lu\n", final_index);
+										}
+										if ((final_index == 0) || (i > final_index)) {
+											ret.segment.seq[i] = 'N';
+										}
+									}
+									else if (mask == 2) {
+										if ((end_newest_kmer == 0) || (i > end_newest_kmer)) {
+											ret.segment.seq[i] = 'N';
+										}
+									}
+								}
+							}
 						}
 					}
 
 					if (phase == 2) {
-						if (mask) {
-							/* Mask the bases in the final k-mer word */
-							if (verbose) {
-								fprintf(stderr, "(7) Masking at base_index = %lu\n", base_index);
-							}
-							for (i = base_index - window_size; i < base_index; i++) {
-								if (mask == 1) {
-									final_index = final_indices[i % (region_size + interval_size)];
-									if (verbose) {
-										fprintf(stderr, "7: Final index = %lu\n", final_index);
-									}
-									if ((final_index == 0) || (i > final_index)) {
-										ret.segment.seq[i] = 'N';
-									}
-								}
-								else if (mask == 2) {
-									if ((end_newest_kmer == 0) || (i > end_newest_kmer)) {
-										ret.segment.seq[i] = 'N';
-									}
-								}
-							}
+						if (cutoff == -1) {
+							fprintf(stderr, "ERROR: THIS USE CASE FOUND WHEN CUTOFF WOULD HAVE BEEN UNINITIALISED!!\n");
+							exit(EXIT_FAILURE);
+						}
+						if (kmer_hits >= cutoff) {
+							printf(">%s %d\n%s\n", ret.segment.name, kmer_hits, ret.segment.seq);
 						}
 					}
+
+					free(ret.segment.name);
+					free(ret.segment.seq);
+					if (format == 1) {
+						free(ret.segment.qual);
+					}
+
+					if (!quiet) {
+						if (read_count == read_count_cutoff) {
+							read_count = 0;
+							fprintf(stderr, ".");
+						}
+					}
+
+				} while (!ret.bEOF);
+
+				if (!quiet) {
+					fprintf(stderr, "\n");
 				}
 
 				if (phase == 2) {
-					if (cutoff == -1) {
-						fprintf(stderr, "ERROR: THIS USE CASE FOUND WHEN CUTOFF WOULD HAVE BEEN UNINITIALISED!!\n");
-						exit(EXIT_FAILURE);
+					if (mask == 1) {
+						free(final_indices);
 					}
-					if (kmer_hits >= cutoff) {
-						printf(">%s %d\n%s\n", ret.segment.name, kmer_hits, ret.segment.seq);
-					}
-				}
-
-				free(ret.segment.name);
-				free(ret.segment.seq);
-				if (format == 1) {
-					free(ret.segment.qual);
-				}
-
-				if (!quiet) {
-					if (read_count == read_count_cutoff) {
-						read_count = 0;
-						fprintf(stderr, ".");
-					}
-				}
-
-			} while (!ret.bEOF);
-
-			if (!quiet) {
-				fprintf(stderr, "\n");
-			}
-
-			if (phase == 2) {
-				if (mask == 1) {
-					free(final_indices);
 				}
 			}
+			fclose(input_file);
 		}
 
 		if (phase == 0) {
@@ -1166,7 +1169,6 @@ int main(int argc, char **argv) {
 				phase = 1;
 			}
 			else if (extract_reads && !print_hist) {
-				rewind(input_file);
 				phase = 2;
 			}
 			else {
@@ -1202,7 +1204,6 @@ int main(int argc, char **argv) {
 			}
 
 			if (extract_reads) {
-				rewind(input_file);
 				phase = 2;
 			}	
 			else {
@@ -1221,8 +1222,6 @@ int main(int argc, char **argv) {
 	}
 
 	free(hash_table);
-	fclose(input_file);
-
 
 	return 0;
 }
