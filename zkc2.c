@@ -400,6 +400,7 @@ int main(int argc, char **argv) {
 	int arg_i; /* Argument parser for loop counter */
 	uint64_t i; /* For loop counter */
 	int k, l; /* For loop counters */
+	bool argument_error = false; /* Set to true if we need to quit after all error checking has taken place */
 
 	phase = 999; /* Default phase = 999, meaning that I have forgotten to set it to anything meaningful */
 
@@ -429,72 +430,76 @@ int main(int argc, char **argv) {
 		if (!strcmp(argv[arg_i], "-u") || !strcmp(argv[arg_i], "--cutoff")) {
 			if (!extract_reads) {
 				fprintf(stderr, "ERROR: -u/--cutoff must not be specified in this mode\n");
-				exit(EXIT_FAILURE);
+				argument_error = true;
 			}
 			if (is_str_integer(argv[++arg_i])) {
 				min_kmer_hits = atoi(argv[arg_i]);
 				if (min_kmer_hits < 0) {
-					fprintf(stderr, "ERROR: -u/--cutoff must not be negative\n");
-					exit(EXIT_FAILURE);
+					fprintf(stderr, "ERROR: -u/--cutoff must be a non-negative integer\n");
+					argument_error = true;
 				}
 			}
 			else {
-				print_usage(argv[0]);
+				fprintf(stderr, "ERROR: -u/--cutoff must be a non-negative integer\n");
+				argument_error = true;
 			}
 		}
 
 		else if (!strcmp(argv[arg_i], "-x") || !strcmp(argv[arg_i], "--max-difference")) {
 			if (!extract_reads) {
 				fprintf(stderr, "ERROR: -x/--max-difference must not be specified in this mode\n");
-				exit(EXIT_FAILURE);
+				argument_error = true;
 			}
 			if (is_str_integer(argv[++arg_i])) {
 				max_kmers_missed = atoi(argv[arg_i]);
 				if (max_kmers_missed < 0) {
-					fprintf(stderr, "ERROR: -x/--max-difference must not be negative\n");
-					exit(EXIT_FAILURE);
+					fprintf(stderr, "ERROR: -x/--max-difference must be a non-negative integer\n");
+					argument_error = true;
 				}
 			}
 			else {
-				print_usage(argv[0]);
+				fprintf(stderr, "ERROR: -x/--max-difference must be a non-negative integer\n");
+				argument_error = true;
 			}
 		}
 
 		else if (!strcmp(argv[arg_i], "-a") || !strcmp(argv[arg_i], "--min")) {
 			if (!extract_reads) {
 				fprintf(stderr, "ERROR: -a/--min-val must not be specified in this mode\n");
-				exit(EXIT_FAILURE);
+				argument_error = true;
 			}
 			if (is_str_integer(argv[++arg_i])) {
 				if (atoi(argv[arg_i]) < 0) {
-					fprintf(stderr, "ERROR: -a/--min-val must not be negative\n");
-					exit(EXIT_FAILURE);
+					fprintf(stderr, "ERROR: -a/--min-val must be a non-negative integer\n");
+					argument_error = true;
 				}
 				else {
 					min_val = atoi(argv[arg_i]);
 				}
 			}
 			else {
-				print_usage(argv[0]);
+				fprintf(stderr, "ERROR: -a/--min-val must be a non-negative integer\n");
+				argument_error = true;
 			}
 		}
 
 		else if (!strcmp(argv[arg_i], "-b") || !strcmp(argv[arg_i], "--max")) {
 			if (!extract_reads) {
 				fprintf(stderr, "ERROR: -b/--max-val must not be specified in this mode\n");
-				exit(EXIT_FAILURE);
+				argument_error = true;
 			}
 			if (is_str_integer(argv[++arg_i])) {
 				if (atoi(argv[arg_i]) < 0) {
-					fprintf(stderr, "ERROR: -b/--max-val must not be negative\n");
-					exit(EXIT_FAILURE);
+					fprintf(stderr, "ERROR: -b/--max-val must be a non-negative integer\n");
+					argument_error = true;
 				}
 				else {
 					max_val = atoi(argv[arg_i]);
 				}
 			}
 			else {
-				print_usage(argv[0]);
+				fprintf(stderr, "ERROR: -b/--max-val must be a non-negative integer\n");
+				argument_error = true;
 			}
 		}
 
@@ -513,28 +518,29 @@ int main(int argc, char **argv) {
 		else if (!strcmp(argv[arg_i], "-k") || !strcmp(argv[arg_i], "--kmer-size")) {
 			if (kmer_size != 0) {
 				fprintf(stderr, "ERROR: -k/--kmer-size specified more than once\n");
-				exit(EXIT_FAILURE);
+				argument_error = true;
 			}
 			if (is_str_integer(argv[++arg_i])) {
 				kmer_size = atoi(argv[arg_i]);
 				if (kmer_size != 13 && kmer_size != 15 && kmer_size != 17) {
 					fprintf(stderr, "ERROR: -k/--kmer-size must be 13, 15, or 17\n");
-					exit(EXIT_FAILURE);
+					argument_error = true;
 				}
 			}
 			else {
-				print_usage(argv[0]);
+				fprintf(stderr, "ERROR: -k/--kmer-size must be 13, 15, or 17\n");
+				argument_error = true;
 			}
 		}
 
 		else if (!strcmp(argv[arg_i], "-d") || !strcmp(argv[arg_i], "--disable-mask")) {
 			if (!extract_reads) {
 				fprintf(stderr, "ERROR: Mask must not be specified in this mode\n");
-				exit(EXIT_FAILURE);
+				argument_error = true;
 			}
 			if (mask == 1) {
 				fprintf(stderr, "ERROR: --disable-mask cannot be used with --strict-mask\n");
-				print_usage(argv[0]);
+				argument_error = true;
 			}
 			else {
 				mask = 0;
@@ -543,11 +549,11 @@ int main(int argc, char **argv) {
 		else if (!strcmp(argv[arg_i], "-s") || !strcmp(argv[arg_i], "--strict-mask")) {
 			if (!extract_reads) {
 				fprintf(stderr, "ERROR: Mask must not be specified in this mode\n");
-				exit(EXIT_FAILURE);
+				argument_error = true;
 			}
 			if (mask == 0) {
 				fprintf(stderr, "ERROR: --strict-mask cannot be used with --disable-mask\n");
-				print_usage(argv[0]);
+				argument_error = true;
 			}
 			else {
 				mask = 1;
@@ -566,12 +572,13 @@ int main(int argc, char **argv) {
 			if (is_str_integer(argv[++arg_i])) {
 				region_size = atoi(argv[arg_i]);
 				if (region_size < 0) {
-					fprintf(stderr, "ERROR: -r/--region-size cannot be negative\n");
-					exit(EXIT_FAILURE);
+					fprintf(stderr, "ERROR: -r/--region-size must be a non-negative integer\n");
+					argument_error = true;
 				}
 			}
 			else {
-				print_usage(argv[0]);
+				fprintf(stderr, "ERROR: -r/--region-size must be a non-negative integer\n");
+				argument_error = true;
 			}
 		}
 
@@ -579,17 +586,19 @@ int main(int argc, char **argv) {
 			if (is_str_integer(argv[++arg_i])) {
 				interval_size = atoi(argv[arg_i]);
 				if (interval_size < 0) {
-					fprintf(stderr, "ERROR: -g/--interval-size cannot be negative\n");
-					exit(EXIT_FAILURE);
+					fprintf(stderr, "ERROR: -g/--interval-size must be a non-negative integer\n");
+					argument_error = true;
 				}
 			}
 			else {
-				print_usage(argv[0]);
+				fprintf(stderr, "ERROR: -g/--interval-size must be a non-negative integer\n");
+				argument_error = true;
 			}
 		}
 
 		else {
-			print_usage(argv[0]);
+			fprintf(stderr, "ERROR: Unrecognised argument %s\n", argv[arg_i]);
+			argument_error = true;
 		}
 
 		index_last_opt = arg_i;
@@ -601,18 +610,18 @@ int main(int argc, char **argv) {
 
 	if (kmer_size == 0) {
 		fprintf(stderr, "ERROR: -k/--kmer-size must be specified\n");
-		exit(EXIT_FAILURE);
+		argument_error = true;
 	}
 
 	if (extract_reads) {
 		if (min_val == 0 || max_val == 0) {
 			fprintf(stderr, "ERROR: -a/--min-val and -b/--max-val must both be specified and non-zero when extracting reads\n");
-			exit(EXIT_FAILURE);
+			argument_error = true;
 		}
 
 		if (max_val < min_val) {
 			fprintf(stderr, "ERROR: -a/--min-val must not be greater than -b/--max-val\n");
-			exit(EXIT_FAILURE);
+			argument_error = true;
 		}
 	}
 
@@ -620,7 +629,7 @@ int main(int argc, char **argv) {
 		if (region_size != -1) {
 			if (region_size != 1 && region_size != 3 && region_size != 5 && region_size != 15) {
 				fprintf(stderr, "ERROR: Region size must be either 1, 3, 5, or 15\n");
-				exit(EXIT_FAILURE);
+				argument_error = true;
 			}
 		}
 	}
@@ -628,30 +637,34 @@ int main(int argc, char **argv) {
 	else {
 		if (region_size != -1) {
 			fprintf(stderr, "ERROR: -r/--region-size must not be specified if -k/--kmer-size is not 15\n");
-			exit(EXIT_FAILURE);
+			argument_error = true;
 		}
 
 		if (interval_size != -1) {
 			fprintf(stderr, "ERROR: -g/--interval-size must not be specified if -k/--kmer-size is not 15\n");
-			exit(EXIT_FAILURE);
+			argument_error = true;
 		}
 
 		if (mask == 1) {
 			fprintf(stderr, "ERROR: -s/--strict cannot be used if -k/--kmer-size is not 15\n");
-			exit(EXIT_FAILURE);
+			argument_error = true;
 		}
 	}
 
 	if (stored_hash_table_location && where_to_save_hash_table) {
 		fprintf(stderr, "ERROR: Cannot specify both -i/--in and -o/--out\n");
-		exit(EXIT_FAILURE);
+		argument_error = true;
 	}
 
 	if (quiet && verbose) {
 		fprintf(stderr, "ERROR: Cannot enable both -q/--quiet and -v/--verbose modes\n");
-		exit(EXIT_FAILURE);
+		argument_error = true;
 	}
 
+
+	if (argument_error) {
+		print_usage(argv[0]);
+	}
 
 	/* ----- End of user input error checking ----- */
 
