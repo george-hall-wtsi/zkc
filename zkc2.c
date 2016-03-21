@@ -214,12 +214,21 @@ void decode_all_hashes(uint64_t hash_val, uint64_t rc_hash, uint64_t canonical_h
 
 
 void print_usage(char *prog_loc) {
+	fprintf(stderr, "usage:"
+								"\t%s <mode> [options] file [file, ...]\n"
+								"\t%s [-h | --help]\n\n"
+								"\twhere <mode> is one of {hist, extract, both}\n\n"
+					, prog_loc, prog_loc);
+}
+
+
+void print_help(char *prog_loc) {
 
 	char *diagram;
 
-	fprintf(stderr, "\nusage: %s mode [options] <file>\n\n"
+	print_usage(prog_loc);
 
-					"modes:\n"
+	fprintf(stderr, "modes:\n"
 						"\thist : only count k-mers and print histogram\n"
 						"\textract : extract reads with above 'cutoff' number of k-mers mapping to it\n"
 						"\tboth : do both hist and extract\n\n"
@@ -241,12 +250,15 @@ void print_usage(char *prog_loc) {
 							"\t\t-x, --max-difference : maximum difference between number of k-mer hits and number of possible k-mer hits for the read (see notes)\n"
 							"\t\t-d, --disable-mask : leave bases not occurring in desired k-mer peaks unmasked when extracting reads (faslse)\n\n"
 
+						"\tmisc:\n"
+							"\t\t-h, --help : print this message\n\n"
+
 					"notes:\n"
 						"\t* If neither --cutoff nor --max-difference is specified but one is required, cutoff defaults to 50\n"
 						"\t* A maximuim of one of --in and --out may be specified by the user\n"
 						"\t* --quiet and --verbose are mutually exclusive\n"
 						"\t* --min cannot be greater than --max\n"
-						"\t* --region-size must be 1, 3, 5, or 15\n\n", prog_loc);
+						"\t* --region-size must be 1, 3, 5, or 15\n\n");
 
 	diagram =	"diagram:\n"
 				"\t---------------------------------------------------------------\n"
@@ -400,13 +412,28 @@ int main(int argc, char **argv) {
 	uint64_t i; /* For loop counter */
 	int k, l; /* For loop counters */
 	bool argument_error = false; /* Set to true if we need to quit after all error checking has taken place */
+	bool help_requested = false; /* Set to true if we need to print the help message after we have looked through the remaining arguments */
 	int index_first_file = argc - 1; /* argv index of the first file passed to the program */
 	int file_index;
 
 	phase = 999; /* Default phase = 999, meaning that I have forgotten to set it to anything meaningful */
 
+	putchar('\n');
+
 	if (argc <= 2) {
-		print_usage(argv[0]);
+		if (argc == 2) {
+			if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
+				print_help(argv[0]);
+			}
+			else {
+				print_usage(argv[0]);
+				exit(EXIT_FAILURE);
+			}
+		}
+		else {
+			print_usage(argv[0]);
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	if (!strcmp(argv[1], "both")) {
@@ -423,12 +450,18 @@ int main(int argc, char **argv) {
 	}
 
 	else {
+		fprintf(stderr, "ERROR: Mode not recognised\n");
 		print_usage(argv[0]);
+		exit(EXIT_FAILURE);
 	}
 
 	for (arg_i = 2; arg_i < argc - 1; arg_i++) {
 
-		if (!strcmp(argv[arg_i], "-u") || !strcmp(argv[arg_i], "--cutoff")) {
+		if (!strcmp(argv[arg_i], "-h") || !strcmp(argv[arg_i], "--help")) {
+			help_requested = true;
+		}
+
+		else if (!strcmp(argv[arg_i], "-u") || !strcmp(argv[arg_i], "--cutoff")) {
 			if (!extract_reads) {
 				fprintf(stderr, "ERROR: -u/--cutoff must not be specified in this mode\n");
 				argument_error = true;
@@ -660,9 +693,17 @@ int main(int argc, char **argv) {
 		argument_error = true;
 	}
 
+	if (help_requested) {
+		if (argument_error) {
+			putchar('\n');
+		}
+		print_help(argv[0]);
+	}
 
 	if (argument_error) {
+		putchar('\n');
 		print_usage(argv[0]);
+		exit(EXIT_FAILURE);
 	}
 
 	/* ----- End of user input error checking ----- */

@@ -10,6 +10,7 @@ typedef struct {
 } new_hashes;
 
 void print_usage(char *prog_loc);
+void print_help(char *prog_loc);
 int hash_base(char base);
 seq_hash_return hash_sequence(char *seq, unsigned int region_size, unsigned int interval_size, unsigned int window_size);
 new_hashes hash_new_window(uint64_t current_seq_hash, int kmer_size);
