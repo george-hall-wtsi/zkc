@@ -30,6 +30,7 @@
 #include "c_tools.h"
 #include "fastlib.h"
 #include "zkc2.h"
+#include "parse_arguments.h"
 
 
 void read_hash_table_from_file(uint32_t *hash_table, char *hash_table_location, bool quiet, uint64_t num_cells_hash_table) {
@@ -213,68 +214,6 @@ void decode_all_hashes(uint64_t hash_val, uint64_t rc_hash, uint64_t canonical_h
 }
 
 
-void print_usage(char *prog_loc) {
-	fprintf(stderr, "usage:"
-								"\t%s <mode> [options] file [file, ...]\n"
-								"\t%s [-h | --help]\n\n"
-								"\twhere <mode> is one of {hist, extract, both}\n\n"
-					, prog_loc, prog_loc);
-}
-
-
-void print_help(char *prog_loc) {
-
-	char *diagram;
-
-	print_usage(prog_loc);
-
-	fprintf(stderr, "modes:\n"
-						"\thist : only count k-mers and print histogram\n"
-						"\textract : extract reads with above 'cutoff' number of k-mers mapping to it\n"
-						"\tboth : do both hist and extract\n\n"
-
-					"options (default):\n"
-						"\tapplicable in both functions:\n"
-							"\t\t-i, --in : location of hash table file - optional: hash table will be computed if not provided\n"
-							"\t\t-o, --out : file in which to store hash table - optional\n"
-							"\t\t-q, --quiet : supress progress messages normally printed to stderr (false)\n"
-							"\t\t-v, --verbose : print each k-mer as it is hashed (only really useful for debugging) (false)\n"
-							"\t\t-c, --canonical : count canonical version of k-mers (i.e. the lowest scoring hash of the k-mer and its reverse complement) (false)\n"
-							"\t\t-r, --region-size : number of bases in each region (15)\n"
-							"\t\t-g, --interval-size : number of bases in gap between each region (0)\n\n"
-
-						"\tonly applicable in extract function:\n"
-							"\t\t-a, --min : minimum number of occurrences of k-mer for it to be masked on read (1)\n"
-							"\t\t-b, --max : maximum number of occurrences of k-mer for it to be masked on read (999)\n"
-							"\t\t-u, --cutoff : minimum number of k-mers mapped to read for read to be printed (see notes)\n"
-							"\t\t-x, --max-difference : maximum difference between number of k-mer hits and number of possible k-mer hits for the read (see notes)\n"
-							"\t\t-d, --disable-mask : leave bases not occurring in desired k-mer peaks unmasked when extracting reads (faslse)\n\n"
-
-						"\tmisc:\n"
-							"\t\t-h, --help : print this message\n\n"
-
-					"notes:\n"
-						"\t* If neither --cutoff nor --max-difference is specified but one is required, cutoff defaults to 50\n"
-						"\t* A maximuim of one of --in and --out may be specified by the user\n"
-						"\t* --quiet and --verbose are mutually exclusive\n"
-						"\t* --min cannot be greater than --max\n"
-						"\t* --region-size must be 1, 3, 5, or 15\n\n");
-
-	diagram =	"diagram:\n"
-				"\t---------------------------------------------------------------\n"
-				"\t|                                                             |\n"
-				"\t|    3     10     3     10     3     10     3     10     3    |\n"
-				"\t|   |||----------|||----------|||----------|||----------|||   |\n"
-                "\t|           ^-- interval       ^-- region                     |\n"
-				"\t|   <---------------------- window ----------------------->   |\n"
-				"\t|                                                             |\n"
-				"\t---------------------------------------------------------------\n";
-
-	fprintf(stderr, "%s\n", diagram);
-	exit(EXIT_FAILURE);
-}
-
-
 new_hashes shift_hash(uint64_t current_seq_hash, uint64_t current_rc_hash, int num_regions, int *base_hash_array, int kmer_size) {
 
 	new_hashes to_return;
@@ -375,339 +314,66 @@ int main(int argc, char **argv) {
 	seq_hash_return hash_seq;
 	new_hashes new_hashes_triple;
 	int kmer_hits = 0;
-	unsigned int min_val = 0;
-	unsigned int max_val = 0;
+	unsigned int min_val;
+	unsigned int max_val;
 	int cutoff = -1 ;
-	int min_kmer_hits = -1;
-	int max_kmers_missed = -1;
-	int interval_size = -1;	/* Number of bases between regions      |||				|||            |||            |||            |||	*/
-	int region_size = -1;	/* Number of bases in each region       ----------------------------------------------------------------	*/
+	int min_kmer_hits;
+	int max_kmers_missed;
+	int interval_size;	/* Number of bases between regions      |||				|||            |||            |||            |||	*/
+	int region_size;	/* Number of bases in each region       ----------------------------------------------------------------	*/
 	unsigned int window_size;		/* Number of bases in window             3      10       3       10     3      10      3      10      3		*/
 	int num_regions;		/*										         ^-- interval           ^-- region							*/
 							/*										<--------------------------- window --------------------------->	*/
-	char *where_to_save_hash_table = NULL;
-	char *stored_hash_table_location = NULL;
+	char *where_to_save_hash_table;
+	char *stored_hash_table_location;
 	uint64_t num_cells_hash_table;
 	uint64_t base_index; 
 	unsigned long new_base_loc;
 	unsigned int histogram_size = 10001;
 	long hist[histogram_size];
-	bool extract_reads = false;
-	bool print_hist = false;
-	bool quiet = false;
-	bool verbose = false;
-	bool use_canonical = false;
-	int mask = 2; /* 0 = no masking; 1 = strict mask; 2 = normal mask */
+	bool extract_reads;
+	bool print_hist;
+	bool quiet;
+	bool verbose;
+	bool use_canonical;
+	int mask; /* 0 = no masking; 1 = strict mask; 2 = normal mask */
 	unsigned long end_newest_kmer = 0; /* Index of the end of the most recently found k-mer word in the desired range. Set to 0 to avoid the first base being unmasked. */
 	unsigned long *final_indices; /* Array holding the indices of the final base currently masked for each set of bases modulo (region_size + interval_size) */
 	unsigned long final_index;
 	int new_base_hash_array[5];
 	int iCount; 
 	int phase; /* 0 => Pass 1; 1 => Pass 2 */
-	int kmer_size = 0; 
+	int kmer_size; 
 	long read_count = 0;
 	long read_count_cutoff = 500000;
 	int min_hits_required;
-	int arg_i; /* Argument parser for loop counter */
 	uint64_t i; /* For loop counter */
 	int k, l; /* For loop counters */
-	bool argument_error = false; /* Set to true if we need to quit after all error checking has taken place */
-	bool help_requested = false; /* Set to true if we need to print the help message after we have looked through the remaining arguments */
-	int index_first_file = argc - 1; /* argv index of the first file passed to the program */
+	int index_first_file; /* argv index of the first file passed to the program */
 	int file_index;
+	argument_struct parsed_args;
 
 	phase = 999; /* Default phase = 999, meaning that I have forgotten to set it to anything meaningful */
 
-	putchar('\n');
+	parsed_args = parse_arguments(argc, argv);
 
-	if (argc <= 2) {
-		if (argc == 2) {
-			if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
-				print_help(argv[0]);
-			}
-			else {
-				print_usage(argv[0]);
-				exit(EXIT_FAILURE);
-			}
-		}
-		else {
-			print_usage(argv[0]);
-			exit(EXIT_FAILURE);
-		}
-	}
-
-	if (!strcmp(argv[1], "both")) {
-		print_hist = true;
-		extract_reads = true;
-	}
-
-	else if (!strcmp(argv[1], "hist")) {
-		print_hist = true;
-	}
-
-	else if (!strcmp(argv[1], "extract")) {
-		extract_reads = true;
-	}
-
-	else {
-		fprintf(stderr, "ERROR: Mode not recognised\n");
-		print_usage(argv[0]);
-		exit(EXIT_FAILURE);
-	}
-
-	for (arg_i = 2; arg_i < argc - 1; arg_i++) {
-
-		if (!strcmp(argv[arg_i], "-h") || !strcmp(argv[arg_i], "--help")) {
-			help_requested = true;
-		}
-
-		else if (!strcmp(argv[arg_i], "-u") || !strcmp(argv[arg_i], "--cutoff")) {
-			if (!extract_reads) {
-				fprintf(stderr, "ERROR: -u/--cutoff must not be specified in this mode\n");
-				argument_error = true;
-			}
-			if (is_str_integer(argv[++arg_i])) {
-				min_kmer_hits = atoi(argv[arg_i]);
-				if (min_kmer_hits < 0) {
-					fprintf(stderr, "ERROR: -u/--cutoff must be a non-negative integer\n");
-					argument_error = true;
-				}
-			}
-			else {
-				fprintf(stderr, "ERROR: -u/--cutoff must be a non-negative integer\n");
-				argument_error = true;
-			}
-		}
-
-		else if (!strcmp(argv[arg_i], "-x") || !strcmp(argv[arg_i], "--max-difference")) {
-			if (!extract_reads) {
-				fprintf(stderr, "ERROR: -x/--max-difference must not be specified in this mode\n");
-				argument_error = true;
-			}
-			if (is_str_integer(argv[++arg_i])) {
-				max_kmers_missed = atoi(argv[arg_i]);
-				if (max_kmers_missed < 0) {
-					fprintf(stderr, "ERROR: -x/--max-difference must be a non-negative integer\n");
-					argument_error = true;
-				}
-			}
-			else {
-				fprintf(stderr, "ERROR: -x/--max-difference must be a non-negative integer\n");
-				argument_error = true;
-			}
-		}
-
-		else if (!strcmp(argv[arg_i], "-a") || !strcmp(argv[arg_i], "--min")) {
-			if (!extract_reads) {
-				fprintf(stderr, "ERROR: -a/--min-val must not be specified in this mode\n");
-				argument_error = true;
-			}
-			if (is_str_integer(argv[++arg_i])) {
-				if (atoi(argv[arg_i]) < 0) {
-					fprintf(stderr, "ERROR: -a/--min-val must be a non-negative integer\n");
-					argument_error = true;
-				}
-				else {
-					min_val = atoi(argv[arg_i]);
-				}
-			}
-			else {
-				fprintf(stderr, "ERROR: -a/--min-val must be a non-negative integer\n");
-				argument_error = true;
-			}
-		}
-
-		else if (!strcmp(argv[arg_i], "-b") || !strcmp(argv[arg_i], "--max")) {
-			if (!extract_reads) {
-				fprintf(stderr, "ERROR: -b/--max-val must not be specified in this mode\n");
-				argument_error = true;
-			}
-			if (is_str_integer(argv[++arg_i])) {
-				if (atoi(argv[arg_i]) < 0) {
-					fprintf(stderr, "ERROR: -b/--max-val must be a non-negative integer\n");
-					argument_error = true;
-				}
-				else {
-					max_val = atoi(argv[arg_i]);
-				}
-			}
-			else {
-				fprintf(stderr, "ERROR: -b/--max-val must be a non-negative integer\n");
-				argument_error = true;
-			}
-		}
-
-		else if (!strcmp(argv[arg_i], "-q") || !strcmp(argv[arg_i], "--quiet")) {
-			quiet = true;
-		}
-
-		else if (!strcmp(argv[arg_i], "-v") || !strcmp(argv[arg_i], "--verbose")) {
-			verbose = true;
-		}
-
-		else if (!strcmp(argv[arg_i], "-c") || !strcmp(argv[arg_i], "--canonical")) {
-			use_canonical = true;
-		}
-
-		else if (!strcmp(argv[arg_i], "-k") || !strcmp(argv[arg_i], "--kmer-size")) {
-			if (kmer_size != 0) {
-				fprintf(stderr, "ERROR: -k/--kmer-size specified more than once\n");
-				argument_error = true;
-			}
-			if (is_str_integer(argv[++arg_i])) {
-				kmer_size = atoi(argv[arg_i]);
-				if (kmer_size != 13 && kmer_size != 15 && kmer_size != 17) {
-					fprintf(stderr, "ERROR: -k/--kmer-size must be 13, 15, or 17\n");
-					argument_error = true;
-				}
-			}
-			else {
-				fprintf(stderr, "ERROR: -k/--kmer-size must be 13, 15, or 17\n");
-				argument_error = true;
-			}
-		}
-
-		else if (!strcmp(argv[arg_i], "-d") || !strcmp(argv[arg_i], "--disable-mask")) {
-			if (!extract_reads) {
-				fprintf(stderr, "ERROR: Mask must not be specified in this mode\n");
-				argument_error = true;
-			}
-			if (mask == 1) {
-				fprintf(stderr, "ERROR: --disable-mask cannot be used with --strict-mask\n");
-				argument_error = true;
-			}
-			else {
-				mask = 0;
-			}
-		}
-		else if (!strcmp(argv[arg_i], "-s") || !strcmp(argv[arg_i], "--strict-mask")) {
-			if (!extract_reads) {
-				fprintf(stderr, "ERROR: Mask must not be specified in this mode\n");
-				argument_error = true;
-			}
-			if (mask == 0) {
-				fprintf(stderr, "ERROR: --strict-mask cannot be used with --disable-mask\n");
-				argument_error = true;
-			}
-			else {
-				mask = 1;
-			}
-		}
-
-		else if (!strcmp(argv[arg_i], "-i") || !strcmp(argv[arg_i], "--in")) {
-			stored_hash_table_location = argv[++arg_i];
-		}
-
-		else if (!strcmp(argv[arg_i], "-o") || !strcmp(argv[arg_i], "--out")) {
-			where_to_save_hash_table = argv[++arg_i];
-		}
-
-		else if (!strcmp(argv[arg_i], "-r") || !strcmp(argv[arg_i], "--region-size")) {
-			if (is_str_integer(argv[++arg_i])) {
-				region_size = atoi(argv[arg_i]);
-				if (region_size < 0) {
-					fprintf(stderr, "ERROR: -r/--region-size must be a non-negative integer\n");
-					argument_error = true;
-				}
-			}
-			else {
-				fprintf(stderr, "ERROR: -r/--region-size must be a non-negative integer\n");
-				argument_error = true;
-			}
-		}
-
-		else if (!strcmp(argv[arg_i], "-g") || !strcmp(argv[arg_i], "--interval-size")) {
-			if (is_str_integer(argv[++arg_i])) {
-				interval_size = atoi(argv[arg_i]);
-				if (interval_size < 0) {
-					fprintf(stderr, "ERROR: -g/--interval-size must be a non-negative integer\n");
-					argument_error = true;
-				}
-			}
-			else {
-				fprintf(stderr, "ERROR: -g/--interval-size must be a non-negative integer\n");
-				argument_error = true;
-			}
-		}
-
-		else {
-			index_first_file = arg_i;
-			break;
-		}
-	}
-
-
-	/* ----- Error check user input ----- */
-
-
-	if (kmer_size == 0) {
-		fprintf(stderr, "ERROR: -k/--kmer-size must be specified\n");
-		argument_error = true;
-	}
-
-	if (extract_reads) {
-		if (min_val == 0 || max_val == 0) {
-			fprintf(stderr, "ERROR: -a/--min-val and -b/--max-val must both be specified and non-zero when extracting reads\n");
-			argument_error = true;
-		}
-
-		if (max_val < min_val) {
-			fprintf(stderr, "ERROR: -a/--min-val must not be greater than -b/--max-val\n");
-			argument_error = true;
-		}
-	}
-
-	if (kmer_size == 15) {
-		if (region_size != -1) {
-			if (region_size != 1 && region_size != 3 && region_size != 5 && region_size != 15) {
-				fprintf(stderr, "ERROR: Region size must be either 1, 3, 5, or 15\n");
-				argument_error = true;
-			}
-		}
-	}
-
-	else {
-		if (region_size != -1) {
-			fprintf(stderr, "ERROR: -r/--region-size must not be specified if -k/--kmer-size is not 15\n");
-			argument_error = true;
-		}
-
-		if (interval_size != -1) {
-			fprintf(stderr, "ERROR: -g/--interval-size must not be specified if -k/--kmer-size is not 15\n");
-			argument_error = true;
-		}
-
-		if (mask == 1) {
-			fprintf(stderr, "ERROR: -s/--strict cannot be used if -k/--kmer-size is not 15\n");
-			argument_error = true;
-		}
-	}
-
-	if (stored_hash_table_location && where_to_save_hash_table) {
-		fprintf(stderr, "ERROR: Cannot specify both -i/--in and -o/--out\n");
-		argument_error = true;
-	}
-
-	if (quiet && verbose) {
-		fprintf(stderr, "ERROR: Cannot enable both -q/--quiet and -v/--verbose modes\n");
-		argument_error = true;
-	}
-
-	if (help_requested) {
-		if (argument_error) {
-			putchar('\n');
-		}
-		print_help(argv[0]);
-	}
-
-	if (argument_error) {
-		putchar('\n');
-		print_usage(argv[0]);
-		exit(EXIT_FAILURE);
-	}
-
-	/* ----- End of user input error checking ----- */
-
+	/* All default values are set in parse_arguments.c */
+	print_hist = parsed_args.print_hist;
+	extract_reads = parsed_args.extract_reads;
+	min_kmer_hits = parsed_args.min_kmer_hits;
+	max_kmers_missed = parsed_args.max_kmers_missed;
+	min_val = parsed_args.min_val;
+	max_val = parsed_args.max_val;
+	quiet = parsed_args.quiet;
+	verbose = parsed_args.verbose;
+	use_canonical = parsed_args.use_canonical;
+	kmer_size = parsed_args.kmer_size;
+	mask = parsed_args.mask;
+	where_to_save_hash_table = parsed_args.where_to_save_hash_table;
+	stored_hash_table_location = parsed_args.stored_hash_table_location;
+	region_size = parsed_args.region_size;
+	interval_size = parsed_args.interval_size;
+	index_first_file = parsed_args.index_first_file;
 
 	num_cells_hash_table = 1UL << (2 * kmer_size); /* = 4^kmer_size */
 
