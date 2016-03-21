@@ -1,4 +1,4 @@
-CFLAGS = -Wall -Wextra -O3 
+CFLAGS = -Wall -Wextra -O3
 CC = cc
 
 SRCS = zkc2.c c_tools.c fastlib.c parse_arguments.c
