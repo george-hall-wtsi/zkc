@@ -319,11 +319,11 @@ int main(int argc, char **argv) {
 	int cutoff = -1 ;
 	int min_kmer_hits;
 	int max_kmers_missed;
-	int interval_size;	/* Number of bases between regions      |||				|||            |||            |||            |||	*/
-	int region_size;	/* Number of bases in each region       ----------------------------------------------------------------	*/
+	int interval_size;				/* Number of bases between regions      |||				|||            |||            |||            |||	*/
+	int region_size;				/* Number of bases in each region       ----------------------------------------------------------------	*/
 	unsigned int window_size;		/* Number of bases in window             3      10       3       10     3      10      3      10      3		*/
-	int num_regions;		/*										         ^-- interval           ^-- region							*/
-							/*										<--------------------------- window --------------------------->	*/
+	int num_regions;				/*										         ^-- interval           ^-- region							*/
+									/*										<--------------------------- window --------------------------->	*/
 	char *where_to_save_hash_table;
 	char *stored_hash_table_location;
 	uint64_t num_cells_hash_table;
