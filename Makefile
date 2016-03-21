@@ -15,6 +15,8 @@ zkc2: $(OBJS)
 debug: CFLAGS = -Wall -Wextra -O0 -g
 debug: zkc2-test
 prod: zkc2
+maek: make
+clena: clean
 	
 clean:
 	rm -f *.o
