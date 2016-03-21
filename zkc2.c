@@ -415,9 +415,6 @@ int main(int argc, char **argv) {
 	}
 
 	if (stored_hash_table_location == NULL) {
-		if (!quiet) {
-			fprintf(stderr, "Counting k-mers into hash table\n");
-		}
 		phase = 0;
 	}
 	else {
@@ -444,23 +441,30 @@ int main(int argc, char **argv) {
 
 	while (true) {
 
-		for (file_index = index_first_file; file_index <= argc - 1; file_index++) {
+		if (phase == 0 || phase == 2) {
 
-			if ((input_file = fopen(argv[file_index], "r")) == NULL) {
-				fprintf(stderr, "ERROR: Could not open data file %s\n", argv[file_index]);
-				exit(EXIT_FAILURE);
+			if (!quiet) {
+				if (phase == 0) {
+					fprintf(stderr, "Counting k-mers into hash table\n");
+				}
+				else if (phase == 2) {
+					fprintf(stderr, "Extracting reads with desired k-mer coverage\n");
+				}
+
+				fprintf(stderr, "One dot for each 500,000 reads processed\n");
 			}
 
-			format = which_format(input_file);
-			rewind(input_file);
+			for (file_index = index_first_file; file_index <= argc - 1; file_index++) {
 
-			if (phase == 0 || phase == 2) {
+				if ((input_file = fopen(argv[file_index], "r")) == NULL) {
+					fprintf(stderr, "ERROR: Could not open data file %s\n", argv[file_index]);
+					exit(EXIT_FAILURE);
+				}
+
+				format = which_format(input_file);
+				rewind(input_file);
 
 				if (phase == 2) {
-					if (!quiet) {
-						fprintf(stderr, "Extracting reads with desired k-mer coverage\n");
-					}
-
 					if (mask == 1) {
 						if ((final_indices = calloc(region_size + interval_size, sizeof(unsigned long))) == NULL) {
 							fprintf(stderr, "ERROR: Ran out of memory\n");
@@ -469,10 +473,6 @@ int main(int argc, char **argv) {
 					}
 
 					rewind(input_file);
-				}
-
-				if (!quiet) {
-					fprintf(stderr, "One dot for each 500,000 reads processed\n");
 				}
 
 				read_count = 0;
@@ -854,17 +854,19 @@ int main(int argc, char **argv) {
 
 				} while (!ret.bEOF);
 
-				if (!quiet) {
-					fprintf(stderr, "\n");
-				}
-
 				if (phase == 2) {
 					if (mask == 1) {
 						free(final_indices);
 					}
 				}
+				fclose(input_file);
 			}
-			fclose(input_file);
+
+			/* Print newline after dots */
+			if (!quiet) {
+				fprintf(stderr, "\n");
+			}
+
 		}
 
 		if (phase == 0) {
