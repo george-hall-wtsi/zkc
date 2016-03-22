@@ -978,10 +978,11 @@ void outer_automaton(argument_struct args, int argc, char **argv) {
 
 int main(int argc, char **argv) {
 
-	argument_struct parsed_args;
+	argument_struct args;
 
-	parsed_args = parse_arguments(argc, argv);
-	outer_automaton(parsed_args, argc, argv);
+	args = parse_arguments(argc, argv);
+
+	outer_automaton(args, argc, argv);
 
 	return 0;
 }
