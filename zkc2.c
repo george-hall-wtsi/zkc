@@ -327,6 +327,16 @@ void compute_histogram(long *hist, bool quiet, unsigned int histogram_size, uint
 }
 
 
+void print_histogram(long *hist, unsigned int histogram_size) {
+	unsigned int i;
+	for (i = 0; i < histogram_size; i++) {
+		if (hist[i] > 0) {
+			printf("%u %ld\n", i + 1, hist[i]);
+		}
+	}
+}
+
+
 int main(int argc, char **argv) {
 
 	FILE *input_file;
@@ -914,15 +924,7 @@ int main(int argc, char **argv) {
 		else if (phase == hist_phase) {
 
 			compute_histogram(hist, quiet, histogram_size, hash_table, num_cells_hash_table);
-
-
-			for (i = 0; i < histogram_size; i++) {
-				if (hist[i] > 0) {
-					printf("%lu %ld\n", i + 1, hist[i]);
-				}
-			}
-
-			/* End replacement */
+			print_histogram(hist, histogram_size);
 
 			if (extract_reads) {
 				phase = extract_phase;
