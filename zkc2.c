@@ -336,7 +336,6 @@ int main(int argc, char **argv) {
 	bool quiet;
 	bool verbose;
 	bool use_canonical;
-	int mask; /* 0 = no masking; 1 = strict mask; 2 = normal mask */
 	unsigned long end_newest_kmer = 0; /* Index of the end of the most recently found k-mer word in the desired range. Set to 0 to avoid the first base being unmasked. */
 	unsigned long *final_indices; /* Array holding the indices of the final base currently masked for each set of bases modulo (region_size + interval_size) */
 	unsigned long final_index;
@@ -353,6 +352,8 @@ int main(int argc, char **argv) {
 	argument_struct parsed_args;
 	enum phase_enum {hashing, histing, extracting, default_phase};
 	enum phase_enum phase = default_phase;
+	enum mask_enum {no_mask, strict_mask, normal_mask};
+	enum mask_enum mask;
 
 	parsed_args = parse_arguments(argc, argv);
 
@@ -464,7 +465,7 @@ int main(int argc, char **argv) {
 				rewind(input_file);
 
 				if (phase == extracting) {
-					if (mask == 1) {
+					if (mask == strict_mask) {
 						if ((final_indices = calloc(region_size + interval_size, sizeof(unsigned long))) == NULL) {
 							fprintf(stderr, "ERROR: Ran out of memory\n");
 							exit(EXIT_FAILURE);
@@ -481,10 +482,10 @@ int main(int argc, char **argv) {
 
 					if (phase == extracting) {
 						kmer_hits = 0;
-						if (mask == 2) {
+						if (mask == normal_mask) {
 							end_newest_kmer = 0; 
 						}
-						else if (mask == 1) {
+						else if (mask == strict_mask) {
 							for (k = 0; k < region_size + interval_size; k++) {
 								final_indices[k] = 0;
 							}
@@ -537,7 +538,7 @@ int main(int argc, char **argv) {
 						base_index += 1;
 						hash_seq = hash_sequence(ret.segment.seq + base_index, region_size, interval_size, window_size);
 						if (phase == extracting) {
-							if (mask) {
+							if (mask == strict_mask || mask == normal_mask) {
 								if (verbose) {
 									fprintf(stderr, "(1) Masking at base_index = %lu\n", base_index);
 								}
@@ -569,7 +570,7 @@ int main(int argc, char **argv) {
 						else if (phase == extracting) {
 							if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
 
-								if (mask == 1) {
+								if (mask == strict_mask) {
 									for (k = base_index - region_size + 1, l = 0; l < (region_size); l++) {
 										if (verbose) {
 											fprintf(stderr, "1: (k + l) %% (region_size + interval_size) = %" PRIu32 " k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
@@ -578,18 +579,19 @@ int main(int argc, char **argv) {
 									}
 								}
 
-								else if (mask == 2) {
+								else if (mask == normal_mask) {
 									end_newest_kmer = base_index;
 								}
+								/* END update_newest_kmer_indices() */
 
 								kmer_hits++;
 							}
 
-							if (mask) {
+							if (mask == strict_mask || mask == normal_mask) {
 								if (verbose) {
 									fprintf(stderr, "(2) - Masking at base_index = %lu\n", base_index);
 								}
-								if (mask == 1) {
+								if (mask == strict_mask) {
 									final_index = final_indices[base_index - window_size + 1 % (region_size + interval_size)];
 									if (verbose) {
 										fprintf(stderr, "2: Final index = %lu\n", final_index);
@@ -598,7 +600,7 @@ int main(int argc, char **argv) {
 										ret.segment.seq[base_index - window_size + 1] = 'N';
 									}
 								}
-								else if (mask == 2) {
+								else if (mask == normal_mask) {
 									if ((end_newest_kmer == 0) || ((base_index - window_size + 1) > end_newest_kmer)) {
 										ret.segment.seq[base_index - window_size + 1] = 'N';
 									}
@@ -638,7 +640,7 @@ int main(int argc, char **argv) {
 
 								else if (phase == extracting) {
 									if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
-										if (mask == 1) {
+										if (mask == strict_mask) {
 											for (k = base_index - region_size + 1, l = 0; l < (region_size); l++) {
 												if (verbose) {
 													fprintf(stderr, "2: (k + l) %% (region_size + interval_size) = %" PRIu32 " k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
@@ -647,18 +649,18 @@ int main(int argc, char **argv) {
 											}
 										}
 
-										else if (mask == 2) {
+										else if (mask == normal_mask) {
 											end_newest_kmer = base_index;
 										}
 
 										kmer_hits++;
 									}
 
-									if (mask) {
+									if (mask == strict_mask || mask == normal_mask) {
 										if (verbose) {
 											fprintf(stderr, "(3) Masking at base_index = %lu\n", base_index);
 										}
-										if (mask == 1) {
+										if (mask == strict_mask) {
 											final_index = final_indices[(base_index - window_size + 1) % (region_size + interval_size)];
 											if (verbose) {
 												fprintf(stderr, "3: base_index - window_size + 1 %% (region_size + interval_size) = %lu Final index = %lu\n", (base_index - window_size + 1) % (region_size + interval_size), final_index);
@@ -667,7 +669,7 @@ int main(int argc, char **argv) {
 												ret.segment.seq[base_index - window_size + 1] = 'N';
 											}
 										}
-										else if (mask == 2) {
+										else if (mask == normal_mask) {
 											if ((end_newest_kmer == 0) || ((base_index - window_size + 1) > end_newest_kmer)) {
 												ret.segment.seq[base_index - window_size + 1] = 'N';
 											}
@@ -679,12 +681,12 @@ int main(int argc, char **argv) {
 							else {
 
 								if (phase == extracting) {
-									if (mask) {
+									if (mask == strict_mask || mask == normal_mask) {
 										/* Before moving onto the next k-mer word, mask, if necessary, the remainder of the k-mer word which is going to be skipped */
 										if (verbose) {
 											fprintf(stderr, "(4) Masking at base_index = %lu\n", base_index);
 										}
-										if (mask == 1) {
+										if (mask == strict_mask) {
 											for (i = base_index - window_size + 1; i < base_index; i++) {
 												final_index = final_indices[i % (region_size + interval_size)];
 												if (verbose) {
@@ -695,7 +697,7 @@ int main(int argc, char **argv) {
 												}
 											}
 										}
-										else if (mask == 2) {
+										else if (mask == normal_mask) {
 											for (i = base_index - window_size + 1; i < base_index; i++) {
 												if ((end_newest_kmer == 0) || (i > end_newest_kmer)) {
 													ret.segment.seq[i] = 'N';
@@ -711,11 +713,11 @@ int main(int argc, char **argv) {
 								/* Keep hashing the sequence starting at the next base and moving along the window until we don't find any more 'N's */
 								while (hash_seq.found_n == true && base_index < (ret.segment.length - window_size)) {
 									if (phase == extracting) {
-										if (mask) {
+										if (mask == strict_mask || mask == normal_mask) {
 											if (verbose) {
 												fprintf(stderr, "(5) Masking at base_index = %lu\n", base_index);
 											}
-											if (mask == 1) {
+											if (mask == strict_mask) {
 												final_index = final_indices[base_index - window_size + 1 % (region_size + interval_size)];
 												if (verbose) {
 													fprintf(stderr, "5: Final index = %lu\n", final_index);
@@ -724,7 +726,7 @@ int main(int argc, char **argv) {
 													ret.segment.seq[base_index] = 'N';
 												}
 											}
-											else if (mask == 2) {
+											else if (mask == normal_mask) {
 												if ((end_newest_kmer == 0) || (base_index > end_newest_kmer)) {
 													ret.segment.seq[base_index] = 'N';
 												}
@@ -762,7 +764,7 @@ int main(int argc, char **argv) {
 
 									else if (phase == extracting) {
 										if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
-											if (mask == 1) {
+											if (mask == strict_mask) {
 												for (k = base_index - region_size + 1, l = 0; l < (region_size); l++) {
 													if (verbose) {
 														fprintf(stderr, "3: (k + l) %% (region_size + interval_size) = %" PRIu32 " k+l = %d\n", (k + l) % (region_size + interval_size), k+l);
@@ -771,18 +773,18 @@ int main(int argc, char **argv) {
 												}
 											}
 
-											else if (mask == 2) {
+											else if (mask == normal_mask) {
 												end_newest_kmer = base_index;
 											}
 
 											kmer_hits++;
 										}
 
-										if (mask) {
+										if (mask == strict_mask || mask == normal_mask) {
 											if (verbose) {
 												fprintf(stderr, "(6) Masking at base_index = %lu\n", base_index);
 											}
-											if (mask == 1) {
+											if (mask == strict_mask) {
 												final_index = final_indices[base_index - window_size + 1 % (region_size + interval_size)];
 												if (verbose) {
 													fprintf(stderr, "6: Final index = %lu\n", final_index);
@@ -791,7 +793,7 @@ int main(int argc, char **argv) {
 													ret.segment.seq[base_index - window_size + 1] = 'N';
 												}
 											}
-											else if (mask == 2) {
+											else if (mask == normal_mask) {
 												if ((end_newest_kmer == 0) || ((base_index - window_size + 1) > end_newest_kmer)) {
 													ret.segment.seq[base_index - window_size + 1] = 'N';
 												}
@@ -803,13 +805,13 @@ int main(int argc, char **argv) {
 						}
 
 						if (phase == extracting) {
-							if (mask) {
+							if (mask == strict_mask || mask == normal_mask) {
 								/* Mask the bases in the final k-mer word */
 								if (verbose) {
 									fprintf(stderr, "(7) Masking at base_index = %lu\n", base_index);
 								}
 								for (i = base_index - window_size; i < base_index; i++) {
-									if (mask == 1) {
+									if (mask == strict_mask) {
 										final_index = final_indices[i % (region_size + interval_size)];
 										if (verbose) {
 											fprintf(stderr, "7: Final index = %lu\n", final_index);
@@ -818,7 +820,7 @@ int main(int argc, char **argv) {
 											ret.segment.seq[i] = 'N';
 										}
 									}
-									else if (mask == 2) {
+									else if (mask == normal_mask) {
 										if ((end_newest_kmer == 0) || (i > end_newest_kmer)) {
 											ret.segment.seq[i] = 'N';
 										}
@@ -854,7 +856,7 @@ int main(int argc, char **argv) {
 				} while (!ret.bEOF);
 
 				if (phase == extracting) {
-					if (mask == 1) {
+					if (mask == strict_mask) {
 						free(final_indices);
 					}
 				}
