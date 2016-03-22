@@ -19,3 +19,4 @@ void read_hash_table_from_file(uint32_t *hash_table, char *hash_table_location, 
 void write_hash_table_to_file(uint32_t *hash_table, char *hash_file_name, bool quiet, uint64_t num_cells_hash_table);
 void compute_histogram(long *hist, bool quiet, unsigned int histogram_size, uint32_t *hash_table, uint64_t num_cells_hash_table);
 void print_histogram(long *hist, unsigned int histogram_size);
+void free_segment(segment *seg, int format);

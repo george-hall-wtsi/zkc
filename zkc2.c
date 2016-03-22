@@ -337,6 +337,17 @@ void print_histogram(long *hist, unsigned int histogram_size) {
 }
 
 
+void free_segment(segment *seg, int format) {
+	free(seg->name);
+	free(seg->seq);
+	if (format == 1) {
+		free(seg->qual);
+	}
+
+	return;
+}
+
+
 int main(int argc, char **argv) {
 
 	FILE *input_file;
@@ -533,11 +544,7 @@ int main(int argc, char **argv) {
 
 					if (ret.segment.length < window_size) {
 
-						free(ret.segment.name);
-						free(ret.segment.seq);
-						if (format == 1) {
-							free(ret.segment.qual);
-						}
+						free_segment(&ret.segment, format);
 						if (!quiet) {
 							if (read_count == read_count_cutoff) {
 								read_count = 0;
@@ -875,11 +882,7 @@ int main(int argc, char **argv) {
 						}
 					}
 
-					free(ret.segment.name);
-					free(ret.segment.seq);
-					if (format == 1) {
-						free(ret.segment.qual);
-					}
+					free_segment(&ret.segment, format);
 
 					if (!quiet) {
 						if (read_count == read_count_cutoff) {
