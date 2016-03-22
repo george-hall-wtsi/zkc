@@ -350,7 +350,7 @@ int main(int argc, char **argv) {
 	int index_first_file; /* argv index of the first file passed to the program */
 	int file_index;
 	argument_struct parsed_args;
-	enum phase_enum {hashing, histing, extracting, default_phase} phase = default_phase;
+	enum phase_enum {hash_phase, hist_phase, extract_phase, default_phase} phase = default_phase;
 	enum mask_enum {no_mask, strict_mask, normal_mask} mask;
 
 	parsed_args = parse_arguments(argc, argv);
@@ -413,16 +413,16 @@ int main(int argc, char **argv) {
 	}
 
 	if (stored_hash_table_location == NULL) {
-		phase = hashing; 
+		phase = hash_phase; 
 	}
 	else {
 		read_hash_table_from_file(hash_table, stored_hash_table_location, quiet, num_cells_hash_table);
 
 		if (print_hist) {
-			phase = histing;
+			phase = hist_phase;
 		}
 		else if (extract_reads && !print_hist) {
-			phase = extracting;
+			phase = extract_phase;
 		}
 	}
 
@@ -439,13 +439,13 @@ int main(int argc, char **argv) {
 
 	while (true) {
 
-		if (phase == hashing || phase == extracting) {
+		if (phase == hash_phase || phase == extract_phase) {
 
 			if (!quiet) {
-				if (phase == hashing) {
+				if (phase == hash_phase) {
 					fprintf(stderr, "Counting k-mers into hash table\n");
 				}
-				else if (phase == extracting) {
+				else if (phase == extract_phase) {
 					fprintf(stderr, "Extracting reads with desired k-mer coverage\n");
 				}
 
@@ -462,7 +462,7 @@ int main(int argc, char **argv) {
 				format = which_format(input_file);
 				rewind(input_file);
 
-				if (phase == extracting) {
+				if (phase == extract_phase) {
 					if (mask == strict_mask) {
 						if ((final_indices = calloc(region_size + interval_size, sizeof(unsigned long))) == NULL) {
 							fprintf(stderr, "ERROR: Ran out of memory\n");
@@ -478,7 +478,7 @@ int main(int argc, char **argv) {
 				do {
 					base_index = 0;
 
-					if (phase == extracting) {
+					if (phase == extract_phase) {
 						kmer_hits = 0;
 						if (mask == normal_mask) {
 							end_newest_kmer = 0; 
@@ -515,7 +515,7 @@ int main(int argc, char **argv) {
 						fprintf(stderr, "Read name: %s\n", ret.segment.name);
 					}
 
-					if (phase == extracting) {
+					if (phase == extract_phase) {
 						if (max_kmers_missed != -1) {
 							/* min_hits_required = minimum number of k-mer hits required to mean that we miss fewer than the maxiumum number of missed k-mers */
 							min_hits_required = ((ret.segment.length - kmer_size + 1) - max_kmers_missed);
@@ -535,7 +535,7 @@ int main(int argc, char **argv) {
 					while (hash_seq.found_n == true && base_index <= (ret.segment.length - window_size)) {
 						base_index += 1;
 						hash_seq = hash_sequence(ret.segment.seq + base_index, region_size, interval_size, window_size);
-						if (phase == extracting) {
+						if (phase == extract_phase) {
 							if (mask == strict_mask || mask == normal_mask) {
 								if (verbose) {
 									fprintf(stderr, "(1) Masking at base_index = %lu\n", base_index);
@@ -561,11 +561,11 @@ int main(int argc, char **argv) {
 							fprintf(stderr, " [1]\n");
 						}
 
-						if (phase == hashing) {
+						if (phase == hash_phase) {
 							hash_table[hash_to_use] += 1;
 						}
 
-						else if (phase == extracting) {
+						else if (phase == extract_phase) {
 							if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
 
 								if (mask == strict_mask) {
@@ -632,11 +632,11 @@ int main(int argc, char **argv) {
 									fprintf(stderr, " [2]\n");
 								}
 
-								if (phase == hashing) {
+								if (phase == hash_phase) {
 									hash_table[hash_to_use] += 1;
 								}
 
-								else if (phase == extracting) {
+								else if (phase == extract_phase) {
 									if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
 										if (mask == strict_mask) {
 											for (k = base_index - region_size + 1, l = 0; l < (region_size); l++) {
@@ -678,7 +678,7 @@ int main(int argc, char **argv) {
 
 							else {
 
-								if (phase == extracting) {
+								if (phase == extract_phase) {
 									if (mask == strict_mask || mask == normal_mask) {
 										/* Before moving onto the next k-mer word, mask, if necessary, the remainder of the k-mer word which is going to be skipped */
 										if (verbose) {
@@ -710,7 +710,7 @@ int main(int argc, char **argv) {
 
 								/* Keep hashing the sequence starting at the next base and moving along the window until we don't find any more 'N's */
 								while (hash_seq.found_n == true && base_index < (ret.segment.length - window_size)) {
-									if (phase == extracting) {
+									if (phase == extract_phase) {
 										if (mask == strict_mask || mask == normal_mask) {
 											if (verbose) {
 												fprintf(stderr, "(5) Masking at base_index = %lu\n", base_index);
@@ -756,11 +756,11 @@ int main(int argc, char **argv) {
 										fprintf(stderr, " [3]\n");
 									}
 
-									if (phase == hashing) {
+									if (phase == hash_phase) {
 										hash_table[hash_to_use] += 1;
 									}
 
-									else if (phase == extracting) {
+									else if (phase == extract_phase) {
 										if (hash_table[hash_to_use] >= min_val && hash_table[hash_to_use] <= max_val) {
 											if (mask == strict_mask) {
 												for (k = base_index - region_size + 1, l = 0; l < (region_size); l++) {
@@ -802,7 +802,7 @@ int main(int argc, char **argv) {
 							}
 						}
 
-						if (phase == extracting) {
+						if (phase == extract_phase) {
 							if (mask == strict_mask || mask == normal_mask) {
 								/* Mask the bases in the final k-mer word */
 								if (verbose) {
@@ -828,7 +828,7 @@ int main(int argc, char **argv) {
 						}
 					}
 
-					if (phase == extracting) {
+					if (phase == extract_phase) {
 						if (cutoff == -1) {
 							fprintf(stderr, "ERROR: THIS USE CASE FOUND WHEN CUTOFF WOULD HAVE BEEN UNINITIALISED!!\n");
 							exit(EXIT_FAILURE);
@@ -853,7 +853,7 @@ int main(int argc, char **argv) {
 
 				} while (!ret.bEOF);
 
-				if (phase == extracting) {
+				if (phase == extract_phase) {
 					if (mask == strict_mask) {
 						free(final_indices);
 					}
@@ -868,23 +868,23 @@ int main(int argc, char **argv) {
 
 		}
 
-		if (phase == hashing) {
+		if (phase == hash_phase) {
 			if (where_to_save_hash_table) {
 				write_hash_table_to_file(hash_table, where_to_save_hash_table, quiet, num_cells_hash_table);
 			}
 
 			if (print_hist) {
-				phase = histing;
+				phase = hist_phase;
 			}
 			else if (extract_reads && !print_hist) {
-				phase = extracting;
+				phase = extract_phase;
 			}
 			else {
 				break;
 			}
 		}
 
-		else if (phase == histing) {
+		else if (phase == hist_phase) {
 
 			if (!quiet) {
 				fprintf(stderr, "Computing histogram\n");
@@ -912,14 +912,14 @@ int main(int argc, char **argv) {
 			}
 
 			if (extract_reads) {
-				phase = extracting;
+				phase = extract_phase;
 			}	
 			else {
 				break;
 			}
 		}
 
-		else if (phase == extracting) {
+		else if (phase == extract_phase) {
 			break;
 		}
 
