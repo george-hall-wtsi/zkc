@@ -6,7 +6,7 @@ tests_failed=0
 program="zkc-test"
 
 k_sizes=(13 15)
-prefixes=("standard" "with_ns" "blank_line_end" "no_quals" "end_at_plus")
+prefixes=("standard" "with_ns" "blank_line_end" "no_quals" "end_at_plus" "extract")
 
 
 for file_prefix in "${prefixes[@]}"; do
@@ -31,64 +31,147 @@ for file_prefix in "${prefixes[@]}"; do
 		echo "Testing zkc hist for fastq files ending after the plus but before the quality values"
 		extensions=("fastq")
 
+	elif [ $file_prefix == "extract" ]; then
+		echo "Testing zkc extract"
+		extensions=("fasta")
+
 	fi
 
 	cd $file_prefix
-		
-	for K in "${k_sizes[@]}"; do
 
-		for extension in "${extensions[@]}"; do
+	if [ $file_prefix != "extract" ]; then
 
-			desired_input=$file_prefix"."$extension
+		for K in "${k_sizes[@]}"; do
 
-			$program hist -k $K -c $desired_input > stdout.tmp 2> stderr.tmp
+			for extension in "${extensions[@]}"; do
 
-			desired_stdout=$file_prefix"."$K"mer_hist.canonical"
+				desired_input=$file_prefix"."$extension
 
-			if cmp stdout.tmp $desired_stdout
-			then 
-				((tests_passed++))
-			else
-				((tests_failed++))
-				echo "Stdout test fails for "$desired_input", k = "$K" canonical"
-			fi
+				$program hist -k $K -c $desired_input > stdout.tmp 2> stderr.tmp
 
-			desired_stderr=$file_prefix".stderr"
+				desired_stdout=$file_prefix"."$K"mer_hist.canonical"
 
-			if cmp stderr.tmp $desired_stderr
-			then 
-				((tests_passed++))
-			else
-				((tests_failed++))
-				echo "Stderr test fails for "$desired_input", k = "$K" canonical"
-			fi
+				if cmp stdout.tmp $desired_stdout
+				then 
+					((tests_passed++))
+				else
+					((tests_failed++))
+					echo "Stdout test fails for "$desired_input", k = "$K" canonical"
+				fi
 
-			rm stdout.tmp stderr.tmp
+				desired_stderr=$file_prefix".stderr"
+
+				if cmp stderr.tmp $desired_stderr
+				then 
+					((tests_passed++))
+				else
+					((tests_failed++))
+					echo "Stderr test fails for "$desired_input", k = "$K" canonical"
+				fi
+
+				rm stdout.tmp stderr.tmp
 
 
-			$program hist -k $K $desired_input > stdout.tmp 2> stderr.tmp
+				$program hist -k $K $desired_input > stdout.tmp 2> stderr.tmp
 
-			desired_stdout=$file_prefix"."$K"mer_hist.not_canonical"
+				desired_stdout=$file_prefix"."$K"mer_hist.not_canonical"
 
-			if cmp stdout.tmp $desired_stdout
-			then 
-				((tests_passed++))
-			else
-				((tests_failed++))
-				echo "Stdout test fails for "$desired_input", k = "$K" non-canonical"
-			fi
+				if cmp stdout.tmp $desired_stdout
+				then 
+					((tests_passed++))
+				else
+					((tests_failed++))
+					echo "Stdout test fails for "$desired_input", k = "$K" non-canonical"
+				fi
 
-			if cmp stderr.tmp $desired_stderr
-			then 
-				((tests_passed++))
-			else
-				((tests_failed++))
-				echo "Stderr test fails for "$desired_input", k = "$K" non-canonical"
-			fi
+				if cmp stderr.tmp $desired_stderr
+				then 
+					((tests_passed++))
+				else
+					((tests_failed++))
+					echo "Stderr test fails for "$desired_input", k = "$K" non-canonical"
+				fi
 
-			rm stdout.tmp stderr.tmp
+				rm stdout.tmp stderr.tmp
+			done
 		done
-	done
+
+	elif [ $file_prefix == "extract" ]; then
+		$program extract -a 2 -b 2 -k 13 -u 0 -c extract.fasta > stdout.tmp 2> /dev/null
+		if cmp stdout.tmp extract.fasta.a2.b2.c.u0.fasta
+		then
+			((tests_passed++))
+		else
+			((tests_failed++))
+			echo "extract.fasta.a2.b2.c.u0.fasta fails"
+		fi
+
+		$program extract -a 1 -b 2 -k 13 -u 0 -c extract.fasta > stdout.tmp 2> /dev/null
+		if cmp stdout.tmp extract.fasta.a1.b2.c.u0.fasta
+		then
+			((tests_passed++))
+		else
+			((tests_failed++))
+			echo "extract.fasta.a1.b2.c.u0.fasta fails"
+		fi
+
+		$program extract -a 1 -b 1 -k 13 -u 0 -c extract.fasta > stdout.tmp 2> /dev/null
+		if cmp stdout.tmp extract.fasta.a1.b1.c.u0.fasta
+		then
+			((tests_passed++))
+		else
+			((tests_failed++))
+			echo "extract.fasta.a1.b1.c.u0.fasta fails"
+		fi
+
+		$program extract -a 3 -b 3 -k 13 -u 0 -c extract.fasta > stdout.tmp 2> /dev/null
+		if cmp stdout.tmp extract.fasta.a3.b3.c.u0.fasta
+		then
+			((tests_passed++))
+		else
+			((tests_failed++))
+			echo "extract.fasta.a3.b3.c.u0.fasta fails"
+		fi
+
+		$program extract -a 2 -b 2 -k 13 -u 10 -c extract.fasta > stdout.tmp 2> /dev/null
+		if cmp stdout.tmp extract.fasta.a2.b2.c.u10.fasta
+		then
+			((tests_passed++))
+		else
+			((tests_failed++))
+			echo "extract.fasta.a2.b2.c.u10.fasta fails"
+		fi
+
+		$program extract -a 2 -b 2 -k 13 -u 10 -d -c extract.fasta > stdout.tmp 2> /dev/null
+		if cmp stdout.tmp extract.fasta.a2.b2.c.d.u10.fasta
+		then
+			((tests_passed++))
+		else
+			((tests_failed++))
+			echo "extract.fasta.a2.b2.c.d.u10.fasta fails"
+		fi
+
+		$program extract -a 2 -b 2 -k 13 -u 0 -c -d extract.fasta > stdout.tmp 2> /dev/null
+		if cmp stdout.tmp extract.fasta.a2.b2.c.d.u0.fasta
+		then
+			((tests_passed++))
+		else
+			((tests_failed++))
+			echo "extract.fasta.a2.b2.c.d.u0.fasta fails"
+		fi
+
+		$program extract -a 1 -b 1 -k 13 -u 0 -c -d extract.fasta > stdout.tmp 2> /dev/null
+		if cmp stdout.tmp extract.fasta.a1.b1.c.d.u0.fasta
+		then
+			((tests_passed++))
+		else
+			((tests_failed++))
+			echo "extract.fasta.a1.b1.c.d.u0.fasta fails"
+		fi
+
+		rm stdout.tmp
+  
+	fi
 
 	if [ $file_prefix == "standard" ]; then
 		echo "Finished testing zkc hist for basic files"
@@ -104,6 +187,9 @@ for file_prefix in "${prefixes[@]}"; do
 
 	elif [ $file_prefix == "end_at_plus" ]; then
 		echo "Finished testing zkc hist for fastq files ending after the plus but before the quality values"
+
+	elif [ $file_prefix == "extract" ]; then
+		echo "Finished testing zkc extract"
 
 	fi
 
