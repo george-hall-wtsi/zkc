@@ -300,6 +300,33 @@ new_hashes hash_new_window(uint64_t current_seq_hash, int kmer_size) {
 }
 
 
+void compute_histogram(long *hist, bool quiet, unsigned int histogram_size, uint32_t *hash_table, uint64_t num_cells_hash_table) {
+
+	uint64_t i;
+
+	if (!quiet) {
+		fprintf(stderr, "Computing histogram\n");
+	}
+
+	for (i = 0; i < histogram_size; i++) {
+		hist[i] = 0;
+	}
+
+	for (i = 0; i < num_cells_hash_table; i++) {
+		if (hash_table[i] > 0) {
+			if (hash_table[i] < histogram_size) {
+				hist[hash_table[i] - 1]++;
+			}
+			else {
+				hist[histogram_size - 1]++;
+			}
+		}
+	}
+
+	return;
+}
+
+
 int main(int argc, char **argv) {
 
 	FILE *input_file;
@@ -886,30 +913,16 @@ int main(int argc, char **argv) {
 
 		else if (phase == hist_phase) {
 
-			if (!quiet) {
-				fprintf(stderr, "Computing histogram\n");
-			}
+			compute_histogram(hist, quiet, histogram_size, hash_table, num_cells_hash_table);
 
-			for (i = 0; i < histogram_size; i++) {
-				hist[i] = 0;
-			}
-
-			for (i = 0; i < num_cells_hash_table; i++) {
-				if (hash_table[i] > 0) {
-					if (hash_table[i] < histogram_size) {
-						hist[hash_table[i] - 1]++;
-					}
-					else {
-						hist[histogram_size - 1]++;
-					}
-				}
-			}
 
 			for (i = 0; i < histogram_size; i++) {
 				if (hist[i] > 0) {
 					printf("%lu %ld\n", i + 1, hist[i]);
 				}
 			}
+
+			/* End replacement */
 
 			if (extract_reads) {
 				phase = extract_phase;
