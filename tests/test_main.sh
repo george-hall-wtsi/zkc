@@ -6,8 +6,8 @@ tests_failed=0
 program="zkc-test"
 
 k_sizes=(13 15)
-prefixes=("standard" "with_ns" "blank_line_end" "no_quals" "end_at_plus" "extract")
-
+prefixes=("standard" "with_ns" "blank_line_end" "no_quals" "end_at_plus" "extract" "hash_table_io")
+require_hist=("standard" "with_ns" "blank_line_end" "no_quals" "end_at_plus")
 
 for file_prefix in "${prefixes[@]}"; do
 
@@ -35,11 +35,14 @@ for file_prefix in "${prefixes[@]}"; do
 		echo "Testing zkc extract"
 		extensions=("fasta")
 
+	elif [ $file_prefix == "hash_table_io" ]; then
+		echo "Testing hash table io"
+
 	fi
 
 	cd $file_prefix
 
-	if [ $file_prefix != "extract" ]; then
+	if [[ "${require_hist[@]}" =~ (^|[[:space:]])"$file_prefix"($|[[:space:]]) ]]; then
 
 		for K in "${k_sizes[@]}"; do
 
@@ -170,6 +173,26 @@ for file_prefix in "${prefixes[@]}"; do
 		fi
 
 		rm stdout.tmp
+
+	elif [ $file_prefix == "hash_table_io" ]; then
+		zkc hist -k 13 -c -o tmp.hash in.fa > /dev/null 2> /dev/null
+		if cmp tmp.hash in.fa.c.k13.hash
+		then 
+			((tests_passed++))
+		else
+			((tests_failed++))
+			echo "Writing hash table to file test failed"
+		fi
+		rm tmp.hash
+		zkc hist -k 13 -c -i in.fa.c.k13.hash in.fa > tmp.hist 2> /dev/null
+		if cmp tmp.hist using_file.hist
+		then
+			((tests_passed++))
+		else
+			((tests_failed++))
+			echo "Reading hash table from file test failed"
+		fi
+		rm tmp.hist
   
 	fi
 
@@ -190,6 +213,9 @@ for file_prefix in "${prefixes[@]}"; do
 
 	elif [ $file_prefix == "extract" ]; then
 		echo "Finished testing zkc extract"
+
+	elif [ $file_prefix == "hash_table_io" ]; then
+		echo "Finished testing hash table io"
 
 	fi
 
