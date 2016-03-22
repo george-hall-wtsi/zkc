@@ -9,6 +9,8 @@ typedef struct {
 	uint64_t canonical_hash;
 } new_hashes;
 
+enum phase_enum {hash_phase, hist_phase, extract_phase, default_phase};
+
 int hash_base(char base);
 seq_hash_return hash_sequence(char *seq, unsigned int region_size, unsigned int interval_size, unsigned int window_size);
 new_hashes hash_new_window(uint64_t current_seq_hash, int kmer_size);
