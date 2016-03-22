@@ -350,10 +350,8 @@ int main(int argc, char **argv) {
 	int index_first_file; /* argv index of the first file passed to the program */
 	int file_index;
 	argument_struct parsed_args;
-	enum phase_enum {hashing, histing, extracting, default_phase};
-	enum phase_enum phase = default_phase;
-	enum mask_enum {no_mask, strict_mask, normal_mask};
-	enum mask_enum mask;
+	enum phase_enum {hashing, histing, extracting, default_phase} phase = default_phase;
+	enum mask_enum {no_mask, strict_mask, normal_mask} mask;
 
 	parsed_args = parse_arguments(argc, argv);
 
