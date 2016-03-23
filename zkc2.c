@@ -866,6 +866,30 @@ void do_hist_stuff(uint32_t *hash_table, uint64_t num_cells_hash_table, bool qui
 }
 
 
+uint32_t *create_hash_table(uint64_t num_cells_hash_table, char *stored_hash_table_location, bool quiet) {
+
+	/* Hash table is 4**kmer_size cells which are guaranteed to be capable of holding the count of a k-mer 
+	 * providing that the count does not exceed 2^32 - the minimum size of a long). 
+	 */
+
+	uint32_t *hash_table;
+
+	/* Magic malloc to make the following calloc muuuuch faster */
+	free(malloc(0));
+
+	if ((hash_table = calloc(num_cells_hash_table, sizeof(uint32_t))) == NULL) {
+		fprintf(stderr, "ERROR: Out of memory\n"); 
+		exit(EXIT_FAILURE);
+	}
+
+	if (stored_hash_table_location != NULL) {
+		read_hash_table_from_file(hash_table, stored_hash_table_location, quiet, num_cells_hash_table);
+	}
+
+	return hash_table;
+}
+
+
 void outer_automaton(argument_struct args, int argc, char **argv) {
 
 	uint32_t *hash_table;
@@ -877,40 +901,11 @@ void outer_automaton(argument_struct args, int argc, char **argv) {
 	int kmer_size = args.kmer_size; 
 	enum phase_enum phase = default_phase;
 
-	stored_hash_table_location = args.stored_hash_table_location;
-	quiet = args.quiet;
-	kmer_size = args.kmer_size;
-
 	num_cells_hash_table = 1UL << (2 * kmer_size); /* = 4^kmer_size */
 
-	/*
-	if (verbose) {
-		fprintf(stderr, "Region size = %u Number regions = %d Interval size = %u Window size = %u K-mer size = %d\n", region_size, num_regions, interval_size, window_size, kmer_size);
-	}
-	*/
+	hash_table = create_hash_table(num_cells_hash_table, stored_hash_table_location, quiet);
 
-
-	/* Move to initialise_hash_table() */
-
-	/* Hash table is 4**kmer_size cells which are guaranteed to be capable of holding the count of a k-mer 
-	 * providing that the count does not exceed 2^32 - the minimum size of a long). 
-	 */
-
-	/* Magic malloc to make the following calloc muuuuch faster */
-	free(malloc(0));
-
-	if ((hash_table = calloc(num_cells_hash_table, sizeof(uint32_t))) == NULL) {
-		fprintf(stderr, "ERROR: Out of memory\n"); 
-		exit(EXIT_FAILURE);
-	}
-
-
-	if (stored_hash_table_location == NULL) {
-		phase = hash_phase; 
-	}
-	else {
-		read_hash_table_from_file(hash_table, stored_hash_table_location, quiet, num_cells_hash_table);
-
+	if (stored_hash_table_location != NULL) {
 		if (print_hist) {
 			phase = hist_phase;
 		}
@@ -918,10 +913,9 @@ void outer_automaton(argument_struct args, int argc, char **argv) {
 			phase = extract_phase;
 		}
 	}
-
-
-	/* END initialise_hash_table() */
-
+	else {
+		phase = hash_phase;
+	}
 
 	while (true) {
 		/* Return phase just finished from main_logic */
@@ -973,6 +967,7 @@ void outer_automaton(argument_struct args, int argc, char **argv) {
 
 	free(hash_table);
 
+	return;
 }
 
 
