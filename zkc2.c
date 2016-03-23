@@ -918,19 +918,16 @@ void outer_automaton(argument_struct args, int argc, char **argv) {
 	}
 
 	while (true) {
-		/* Return phase just finished from main_logic */
 		if (phase == hash_phase || phase == extract_phase) {
 			pass_through_file(args, phase, hash_table, num_cells_hash_table, argc, argv);
 		}
 		else if (phase == hist_phase) {
 			do_hist_stuff(hash_table, num_cells_hash_table, quiet);
 		}
-		else if (phase == default_phase) {
-			fprintf(stderr, "INTERNAL ERROR: Phase has not been set correctly (is still at 999)\n");
+		else {
+			fprintf(stderr, "INTERNAL ERROR: Phase has not been set correctly\n");
 			exit(EXIT_FAILURE);
 		}
-
-		/* Update phase variable */
 
 		if (phase == hash_phase) {
 			if (print_hist) {
@@ -943,7 +940,6 @@ void outer_automaton(argument_struct args, int argc, char **argv) {
 				break;
 			}
 		}
-
 		else if (phase == hist_phase) {
 			if (extract_reads) {
 				phase = extract_phase;
@@ -952,19 +948,14 @@ void outer_automaton(argument_struct args, int argc, char **argv) {
 				break;
 			}
 		}
-
 		else if (phase == extract_phase) {
 			break;
 		}
-
 		else {
 			fprintf(stderr, "INTERNAL ERROR: Phase not correctly set\n");
 			exit(EXIT_FAILURE);
 		}
-
-		/* End update of phase variable */
 	}
-
 	free(hash_table);
 
 	return;
