@@ -890,7 +890,7 @@ uint32_t *create_hash_table(uint64_t num_cells_hash_table, char *stored_hash_tab
 }
 
 
-void outer_automaton(argument_struct args, int argc, char **argv) {
+void phase_automaton(argument_struct args, int argc, char **argv) {
 
 	uint32_t *hash_table;
 	char *stored_hash_table_location = args.stored_hash_table_location;
@@ -968,7 +968,7 @@ int main(int argc, char **argv) {
 
 	args = parse_arguments(argc, argv);
 
-	outer_automaton(args, argc, argv);
+	phase_automaton(args, argc, argv);
 
 	return 0;
 }
